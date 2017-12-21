@@ -5,14 +5,14 @@
 struct ActionInstruction
 {
     OFInstruction header;
-    uint32_t pad;
+    u32 pad;
 } __attribute__((__packed__));
 
 struct GotoTableInstruction
 {
     OFInstruction header;
-    uint8_t table;
-    uint8_t pad[3];
+    u8 table;
+    u8 pad[3];
 } __attribute__((__packed__));
 
 FlowModFactory::FlowModFactory()
@@ -29,10 +29,15 @@ FlowModFactory::~FlowModFactory()
     this->instructions.clear();
 }
 
-void FlowModFactory::addGotoTableInstruction(uint8_t table)
+void FlowModFactory::setCookie(u64 cookie)
+{
+    this->cookie = cookie;
+}
+
+void FlowModFactory::addGotoTableInstruction(u8 table)
 {
     GotoTableInstruction *ins = new GotoTableInstruction;
-    uint16_t isize = sizeof(GotoTableInstruction);
+    u16 isize = sizeof(GotoTableInstruction);
     ins->header.type = __builtin_bswap16(0x0001); // GotoTable
     ins->header.length = __builtin_bswap16(isize);
     ins->table = table;
@@ -42,16 +47,16 @@ void FlowModFactory::addGotoTableInstruction(uint8_t table)
 
 void FlowModFactory::addApplyActionInstruction(std::vector<OFAction*> actions)
 {
-    uint16_t actionsSize = 0;
+    u16 actionsSize = 0;
     for (auto& it : actions)
     {
-        uint16_t asize = __builtin_bswap16(it->length);
+        u16 asize = __builtin_bswap16(it->length);
     //    asize = (asize+7)&~(0xFLL);
         actionsSize += asize;
     }
 
-    uint16_t isize = sizeof(ActionInstruction)+actionsSize;
-    uint8_t* buf = new uint8_t[isize];
+    u16 isize = sizeof(ActionInstruction)+actionsSize;
+    u8* buf = new u8[isize];
     ActionInstruction* ins = (ActionInstruction*)buf; 
     ins->header.type = __builtin_bswap16(0x0004); // ApplyActions
     ins->header.length = __builtin_bswap16(isize);
@@ -59,7 +64,7 @@ void FlowModFactory::addApplyActionInstruction(std::vector<OFAction*> actions)
 
     for (auto& it : actions)
     {
-        uint16_t asize = __builtin_bswap16(it->length);
+        u16 asize = __builtin_bswap16(it->length);
         memcpy(buf,it,asize);         
       //  asize = (asize+7)&~(0xFLL);
         buf+=asize;       
@@ -70,14 +75,14 @@ void FlowModFactory::addApplyActionInstruction(std::vector<OFAction*> actions)
     this->instructions.push_back((OFInstruction*)ins);
 }
 
-void FlowModFactory::addOXM(OpenFlowOXMField f,uint8_t* data, uint8_t size)
+void FlowModFactory::addOXM(OpenFlowOXMField f,u8* data, u8 size)
 {
-    uint8_t msgSize = sizeof(OFOXM)+size;
-    uint8_t* buf = new uint8_t[msgSize];
+    u8 msgSize = sizeof(OFOXM)+size;
+    u8* buf = new u8[msgSize];
     OFOXM* oxm = (OFOXM*)buf;
 
     oxm->oclass = __builtin_bswap16(0x8000);
-    oxm->field = (uint8_t)f;
+    oxm->field = (u8)f;
     oxm->hashmask = 0;
     oxm->length = size;
 
@@ -88,16 +93,16 @@ void FlowModFactory::addOXM(OpenFlowOXMField f,uint8_t* data, uint8_t size)
     this->oxmSize+=msgSize;
 }
 
-OFFlowModMessage* FlowModFactory::getMessage(uint8_t command, uint32_t xid, uint8_t tableId, uint16_t priority, uint32_t outPort)
+OFFlowModMessage* FlowModFactory::getMessage(u8 command, u32 xid, u8 tableId, u16 priority, u32 outPort)
 {
-    uint16_t matchPadSize = 8-((sizeof(OFMatch)+this->oxmSize)&0b111);
-    uint16_t size = sizeof(OFFlowModMessage)+this->oxmSize+this->instructionsSize+matchPadSize;
-    uint8_t *buf = new uint8_t[size];
+    u16 matchPadSize = 8-((sizeof(OFMatch)+this->oxmSize)&0b111);
+    u16 size = sizeof(OFFlowModMessage)+this->oxmSize+this->instructionsSize+matchPadSize;
+    u8 *buf = new u8[size];
     memset(buf,0,size);
     OFFlowModMessage* mod = (OFFlowModMessage*)buf;
 
     mod->header.version = OF_VERSION;
-    mod->header.type = (uint8_t)OpenFlowMessageType::FlowMod;
+    mod->header.type = (u8)OpenFlowMessageType::FlowMod;
     mod->header.length = __builtin_bswap16(size);
     mod->header.xid = xid;
     mod->command = command;
@@ -106,6 +111,7 @@ OFFlowModMessage* FlowModFactory::getMessage(uint8_t command, uint32_t xid, uint
     mod->outPort = __builtin_bswap32(outPort);
     mod->outGroup = 0;
     mod->tableId = tableId;
+    mod->cookie = this->cookie;
 
     mod->match.type = __builtin_bswap16(1);
     mod->match.length = __builtin_bswap16(sizeof(OFMatch)+this->oxmSize); // size = sizeof match header (exluding padding, so should be 4) + total size of oxms
@@ -114,7 +120,7 @@ OFFlowModMessage* FlowModFactory::getMessage(uint8_t command, uint32_t xid, uint
     for (auto& it : this->oxms)
     {
         OFOXM* oxm = it;
-        uint8_t osize = oxm->length+sizeof(OFOXM);
+        u8 osize = oxm->length+sizeof(OFOXM);
         memcpy(buf,oxm,osize);
         buf+=osize;
         delete oxm;
@@ -125,7 +131,7 @@ OFFlowModMessage* FlowModFactory::getMessage(uint8_t command, uint32_t xid, uint
     for (auto& it : this->instructions)
     {
         OFInstruction* ins = it;
-        uint16_t isize = __builtin_bswap16(it->length);
+        u16 isize = __builtin_bswap16(it->length);
         memcpy(buf,ins,isize);
         buf+=isize;
         delete ins;     

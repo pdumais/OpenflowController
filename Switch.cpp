@@ -18,7 +18,7 @@ Switch::~Switch()
     this->ports.clear();
 }
 
-void Switch::setDataPathId(uint64_t id)
+void Switch::setDataPathId(u64 id)
 {
     this->dataPathId = id;
     LOG("New switch with id "<< std::hex << id << " discovered");
@@ -26,7 +26,7 @@ void Switch::setDataPathId(uint64_t id)
 
 
 
-bool Switch::addPort(uint32_t index, std::string name)
+bool Switch::addPort(u32 index, std::string name)
 {
     if (this->ports.count(index)) return false; // cant add the same port twice
 
@@ -35,7 +35,7 @@ bool Switch::addPort(uint32_t index, std::string name)
     return true;
 }
 
-bool Switch::removePort(uint32_t index)
+bool Switch::removePort(u32 index)
 {
     if (!this->ports.count(index)) return false; // cant add the same port twice
     SwitchPort* ps = this->ports[index]; 
@@ -46,7 +46,7 @@ bool Switch::removePort(uint32_t index)
     return true;
 }
 
-bool Switch::setPortModeTrunk(uint32_t index, std::vector<uint16_t> vlans, uint16_t defaultVlan)
+bool Switch::setPortModeTrunk(u32 index, std::vector<u16> vlans, u16 defaultVlan)
 {
     if (!this->ports.count(index)) return false; // cant add the same port twice
     SwitchPort* ps = this->ports[index]; 
@@ -60,7 +60,7 @@ bool Switch::setPortModeTrunk(uint32_t index, std::vector<uint16_t> vlans, uint1
     }
 }
 
-bool Switch::setPortModeAccess(uint32_t index, uint16_t vlan)
+bool Switch::setPortModeAccess(u32 index, u16 vlan)
 {
     if (!this->ports.count(index)) return false; // cant add the same port twice
     SwitchPort* ps = this->ports[index]; 
@@ -72,7 +72,7 @@ bool Switch::setPortModeAccess(uint32_t index, uint16_t vlan)
 }
 
 
-bool Switch::setPortState(uint32_t index, SwitchPortState s)
+bool Switch::setPortState(u32 index, SwitchPortState s)
 {
     if (!this->ports.count(index)) return false; // cant add the same port twice
     SwitchPort* ps = this->ports[index]; 
@@ -89,7 +89,7 @@ void Switch::toJson(Dumais::JSON::JSON& json)
     }
 }
 
-std::vector<SwitchPort*> Switch::getPortsInVlan(uint16_t vlan)
+std::vector<SwitchPort*> Switch::getPortsInVlan(u16 vlan)
 {
     std::vector<SwitchPort*> list;
     for (auto& it : this->ports)
@@ -102,14 +102,14 @@ std::vector<SwitchPort*> Switch::getPortsInVlan(uint16_t vlan)
     return list;
 }
 
-void Switch::learn(uint32_t inPort, uint16_t vlanTag, MacAddress mac)
+void Switch::learn(u32 inPort, u16 vlanTag, MacAddress mac)
 {
     if (mac == 0x0000FFFFFFFFFF) return;
     if (!this->ports.count(inPort)) return;
     SwitchPort* ps = this->ports[inPort]; 
     if (ps->getState() == SwitchPortState::Down) return;
 
-    uint16_t vlan;
+    u16 vlan;
     if (ps->getMode() == SwitchPortMode::Access)
     {
         vlan = ps->getVlans()[0];
@@ -123,18 +123,18 @@ void Switch::learn(uint32_t inPort, uint16_t vlanTag, MacAddress mac)
     LOG("Learning ["<< getMacString(mac) << "] on port " << inPort);
 }
 
-SwitchPort* Switch::getPortFromFib(uint16_t vlan, MacAddress dst)
+SwitchPort* Switch::getPortFromFib(u16 vlan, MacAddress dst)
 {
     if (!this->fibs[vlan].count(dst)) return 0;
 
-    uint32_t targetPort = this->fibs[vlan][dst];
+    u32 targetPort = this->fibs[vlan][dst];
     if (!this->ports.count(targetPort)) return 0;
     SwitchPort* target = this->ports[targetPort];
     if (target->getState() == SwitchPortState::Down) return 0;
     return target;    
 }
 
-OutPortResult Switch::getOutPorts(uint32_t inPort, uint16_t vlanTag, MacAddress mac)
+OutPortResult Switch::getOutPorts(u32 inPort, u16 vlanTag, MacAddress mac)
 {
     OutPortResult result;
     result.flood = false;
@@ -144,7 +144,7 @@ OutPortResult Switch::getOutPorts(uint32_t inPort, uint16_t vlanTag, MacAddress 
     if (ps->getState() == SwitchPortState::Down) return result;
 
     // Get the vlan from which this packet came from
-    uint16_t vlan;
+    u16 vlan;
     if (ps->getMode() == SwitchPortMode::Access)
     {
         vlan = ps->getVlans()[0];

@@ -14,6 +14,7 @@
 #include <netdb.h>
 #include "ControllerResponseHandler.h"
 #include "SimpleLearningSwitch.h"
+#include "VirtualNetworkSwitch.h"
 
 #define PACKET_SIZE 2048
 
@@ -38,7 +39,7 @@ Server::~Server()
     }
 }
 
-bool Server::init()
+bool Server::init(char* addr)
 {
     this->maxConnections = 5;
 
@@ -48,7 +49,7 @@ bool Server::init()
     fcntl(s, F_SETFL, flags | O_NONBLOCK);
     sockaddr_in sockadd;
     sockadd.sin_family=AF_INET;
-    sockadd.sin_addr.s_addr=inet_addr("0.0.0.0");
+    sockadd.sin_addr.s_addr=inet_addr(addr);
     sockadd.sin_port=htons(6633);
     int r = 1;
     setsockopt(s,SOL_SOCKET,SO_REUSEADDR,&r,sizeof(r));
@@ -99,7 +100,8 @@ void Server::process()
                 ControllerResponseHandler* rh = new ControllerResponseHandler();
                 rh->server = this;
                 rh->client = c;
-                c->netSwitch = new SimpleLearningSwitch(rh);
+                //c->netSwitch = new SimpleLearningSwitch(rh);
+                c->netSwitch = new VirtualNetworkSwitch(rh);
                 this->clients[r] = c;
                 LOG("New switch connected");
             }
@@ -183,7 +185,7 @@ bool Server::processClientMessage(Client* c)
     }
 }
 
-void Server::sendMessage(OFMessage* m, Client* c, uint16_t size)
+void Server::sendMessage(OFMessage* m, Client* c, u16 size)
 {
     int n = send(c->s,m,size,0);
     if (n != size)

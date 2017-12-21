@@ -1,28 +1,12 @@
 #pragma once
 #include <string>
+#include "Ethernet.h"
 
-typedef uint64_t MacAddress;
-
-struct Ethernet
-{
-    uint8_t dstMac[6];
-    uint8_t srcMac[6];
-    uint16_t etherType;
-    
-}__attribute__((__packed__));
-
-struct EthernetVlan
-{
-    uint8_t dstMac[6];
-    uint8_t srcMac[6];
-    uint16_t t8100;
-    uint16_t vlan;
-    uint16_t etherType;
-}__attribute__((__packed__));
-    
 
 std::string getMacString(MacAddress mac);
-std::string getSourceMac(Ethernet* e);
-std::string getDestinationMac(Ethernet* e);
-MacAddress extractMacAddress(uint8_t* addr);
-void convertMacAddressToNetworkOrder(MacAddress mac, uint8_t* buf);
+std::string getCIDRString(u32 ip,u32 mask);
+std::string getIPString(u32 ip);
+
+MacAddress extractMacAddress(u8* addr);
+void convertMacAddressToNetworkOrder(MacAddress mac, u8* buf);
+

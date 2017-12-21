@@ -33,7 +33,7 @@ int main(int argc, char **argv)
     signal(SIGTERM, termHandler);
     signal(SIGINT, termHandler);
 
-    if (!server.init())
+    if (!server.init("192.168.1.3"))
     {
         LOG("Could not bind");
         return 1;

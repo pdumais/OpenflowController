@@ -6,6 +6,8 @@
 OpenFlowSwitch::OpenFlowSwitch(ResponseHandler* rh): Switch()
 {
     this->responseHandler = rh;
+    this->currentXid = 0;
+    this->initialized = false;
 }
 
 OpenFlowSwitch::~OpenFlowSwitch()
@@ -16,6 +18,11 @@ OpenFlowSwitch::~OpenFlowSwitch()
     }
 
     this->handlers.clear();
+}
+
+void OpenFlowSwitch::onInitComplete()
+{
+    this->initialized = true;
 }
 
 void OpenFlowSwitch::process(OFMessage* m)
@@ -48,3 +55,8 @@ void OpenFlowSwitch::toJson(Dumais::JSON::JSON& json)
     Switch::toJson(json);
 }
 
+u32 OpenFlowSwitch::getXid()
+{
+    this->currentXid++;
+    return this->currentXid;
+}

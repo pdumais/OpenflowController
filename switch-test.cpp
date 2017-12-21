@@ -29,7 +29,7 @@ Switch* newSwitch(int upCount)
     return s;
 }
 
-bool testOutPort(Switch *s, uint32_t in, uint16_t tag, MacAddress mac, std::vector<OutPortInfo> expected)
+bool testOutPort(Switch *s, u32 in, u16 tag, MacAddress mac, std::vector<OutPortInfo> expected)
 {
     OutPortResult ret = s->getOutPorts(in,tag,mac);
 

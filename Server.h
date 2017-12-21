@@ -8,9 +8,9 @@
 struct Client 
 {
     int s;
-    uint8_t buffer[2048];
-    uint16_t expect;
-    uint16_t index;        
+    u8 buffer[2048];
+    u16 expect;
+    u16 index;        
     OpenFlowSwitch *netSwitch;
 };
 
@@ -31,7 +31,7 @@ private:
 public:
     Server();
     ~Server();
-    bool init();
+    bool init(char* addr);
     void process();
-    void sendMessage(OFMessage* m, Client* c, uint16_t size);
+    void sendMessage(OFMessage* m, Client* c, u16 size);
 };

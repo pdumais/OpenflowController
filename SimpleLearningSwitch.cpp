@@ -12,6 +12,8 @@
 #include "NetworkUtils.h"
 #include "PacketOutFactory.h"
 #include "logger.h"
+#include "Ethernet.h"
+#include "JSON.h"
 
 SimpleLearningSwitch::SimpleLearningSwitch(ResponseHandler* rh): OpenFlowSwitch(rh)
 {
@@ -28,17 +30,20 @@ SimpleLearningSwitch::~SimpleLearningSwitch()
 {
 }
 
-void SimpleLearningSwitch::onFeatureResponse(uint64_t dataPathId)
+void SimpleLearningSwitch::onFeatureResponse(u64 dataPathId)
 {
+    if (this->initialized)
+    {
+        LOG("Received FeatureRequestResponse when already initialized. Should handle that");
+        return;
+    }
+
     this->setDataPathId(dataPathId);
 
-    //TODO: we should only do the following if the session just got established
-
     OFSetConfigMessage c;
-    uint16_t size = sizeof(OFSetConfigMessage);
-    buildMessageHeader((OFMessage*)&c, OpenFlowMessageType::SetConfig);
+    u16 size = sizeof(OFSetConfigMessage);
+    buildMessageHeader((OFMessage*)&c, OpenFlowMessageType::SetConfig,this->getXid());
     c.header.length = __builtin_bswap16(size);
-    c.header.xid = 2;//TODO: should generate a new one
     c.flags = 0;
     c.missSendLen = __builtin_bswap16(0xFF);
     this->responseHandler->sendMessage((OFMessage*)&c,size);
@@ -47,10 +52,9 @@ void SimpleLearningSwitch::onFeatureResponse(uint64_t dataPathId)
     // Request ports list
     OFMultipartReqMessage mp;
     size = sizeof(OFMultipartReqMessage);
-    buildMessageHeader((OFMessage*)&mp, OpenFlowMessageType::MultipartReq);
+    buildMessageHeader((OFMessage*)&mp, OpenFlowMessageType::MultipartReq,this->getXid());
     mp.header.length = __builtin_bswap16(size);
-    mp.header.xid = 4;//TODO: should generate a new one
-    mp.type = __builtin_bswap16(0x000d); // PortDescription
+    mp.type = __builtin_bswap16((u16)OpenFlowMultiPartTypes::PortDesc); // PortDescription
     mp.flags = 0;
     this->responseHandler->sendMessage((OFMessage*)&mp,size);
 
@@ -68,18 +72,20 @@ void SimpleLearningSwitch::onFeatureResponse(uint64_t dataPathId)
     // get there anyway (for the prupose of this application)
     this->setTableMissFlow(0);
     this->setTableMissFlow(1);
+    this->onInitComplete();
 }
 
-void SimpleLearningSwitch::onPacketIn(Ethernet* eth, uint16_t size, uint32_t inPort, uint8_t table, uint32_t bufferId)
+void SimpleLearningSwitch::onPacketIn(EthernetFrame* eth, u16 size, MatchReader* mr, u8 table, u32 bufferId, u64 cookie)
 {
-    uint16_t etherType = __builtin_bswap16(eth->etherType);
-    uint16_t vlan;
+    u32 inPort = mr->getInPort();
+    u16 etherType = __builtin_bswap16(eth->etherType);
+    u16 vlan;
     MacAddress src = extractMacAddress(eth->srcMac);
     MacAddress dst = extractMacAddress(eth->dstMac);
 
     if (etherType == 0x8100)
     {
-        EthernetVlan* ethvlan = (EthernetVlan*)eth;
+        EthernetFrameVlan* ethvlan = (EthernetFrameVlan*)eth;
         etherType = __builtin_bswap16(ethvlan->etherType);
         vlan = __builtin_bswap16(ethvlan->vlan);
         LOG("Packet is vlan-tagged with " <<vlan);
@@ -119,13 +125,13 @@ void SimpleLearningSwitch::onPacketIn(Ethernet* eth, uint16_t size, uint32_t inP
     this->createPacketOut(vlan, inPort, dst, opr.ports, bufferId);
 }
 
-void SimpleLearningSwitch::onPortChanged(OFPort* p, PortChangeOperation op)
+void SimpleLearningSwitch::onPortChanged(OFPort* p, PortChangeOperation op, bool moreToCome)
 {
-    uint16_t portId = __builtin_bswap32(p->id);
+    u16 portId = __builtin_bswap32(p->id);
     std::string name;
     name.assign(p->name,strnlen(p->name,16));
-    uint32_t portConfig = __builtin_bswap32(p->config);
-    uint32_t portState = __builtin_bswap32(p->state);
+    u32 portConfig = __builtin_bswap32(p->config);
+    u32 portState = __builtin_bswap32(p->state);
 
     SwitchPortState switchPortState = SwitchPortState::Down;
     if ((portState == OF_PORT_STATE_STP_LISTEN) && (portConfig &(OF_PORT_CONFIG_PORT_DOWN))==0) switchPortState = SwitchPortState::Up;
@@ -150,9 +156,16 @@ void SimpleLearningSwitch::onPortChanged(OFPort* p, PortChangeOperation op)
         }
         break;
     }
+    
+    if (!moreToCome)
+    {
+        Dumais::JSON::JSON j;
+        this->toJson(j);
+        LOG("SimpleLearningSwitch: \r\n\r\n"<<j.stringify(true));
+    }
 }
 
-void SimpleLearningSwitch::configurePort(uint32_t port)
+void SimpleLearningSwitch::configurePort(u32 port)
 {
     // TODO: this is currently hardcoded but it should be fetched from config file
 
@@ -167,36 +180,36 @@ void SimpleLearningSwitch::configurePort(uint32_t port)
     }
 }
 
-void SimpleLearningSwitch::clearFlows(uint8_t table)
+void SimpleLearningSwitch::clearFlows(u8 table)
 {
     FlowModFactory factory;
-    OFFlowModMessage* mod = factory.getMessage(3,8,table,0,0);
-    uint16_t size = __builtin_bswap16(mod->header.length);
+    OFFlowModMessage* mod = factory.getMessage(3,this->getXid(),table,0,0);
+    u16 size = __builtin_bswap16(mod->header.length);
     this->responseHandler->sendMessage((OFMessage*)mod,size);
     delete mod;
 }
 
-void SimpleLearningSwitch::setTableMissFlow(uint8_t table)
+void SimpleLearningSwitch::setTableMissFlow(u8 table)
 {
     FlowModFactory factory;
     ActionFactory af;
 
-    OFAction* sendToControllerAction = af.createOutputAction((uint32_t)OpenFlowPort::Controller,0xFFFF);
+    OFAction* sendToControllerAction = af.createOutputAction((u32)OpenFlowPort::Controller,0xFFFF);
     factory.addApplyActionInstruction({sendToControllerAction});
-    OFFlowModMessage* mod = factory.getMessage(0,10,table,0,0);
-    uint16_t size = __builtin_bswap16(mod->header.length);
+    OFFlowModMessage* mod = factory.getMessage(0,this->getXid(),table,0,0);
+    u16 size = __builtin_bswap16(mod->header.length);
     this->responseHandler->sendMessage((OFMessage*)mod,size);
     delete mod;
 }
 
 
-void SimpleLearningSwitch::createBroadcastFlow(uint16_t vlan,uint32_t in_port,std::vector<OutPortInfo> outPorts)
+void SimpleLearningSwitch::createBroadcastFlow(u16 vlan,u32 in_port,std::vector<OutPortInfo> outPorts)
 {
 }
 
-void SimpleLearningSwitch::createUnicastFlow(uint16_t vlan,uint32_t in_port,MacAddress dst, std::vector<OutPortInfo> outPorts)
+void SimpleLearningSwitch::createUnicastFlow(u16 vlan,u32 in_port,MacAddress dst, std::vector<OutPortInfo> outPorts)
 {
-    uint16_t prio = 100;
+    u16 prio = 100;
     ActionFactory af;
     FlowModFactory fmf;
     std::vector<OFAction*> actions;
@@ -233,20 +246,20 @@ void SimpleLearningSwitch::createUnicastFlow(uint16_t vlan,uint32_t in_port,MacA
 
     fmf.addApplyActionInstruction(actions);
     
-    uint32_t inPortData = __builtin_bswap32(in_port);
-    uint8_t macData[6];
-    uint16_t vlanData = __builtin_bswap16(vlan | 0x1000);
-    convertMacAddressToNetworkOrder(dst, (uint8_t*)&macData[0]);
-    fmf.addOXM(OpenFlowOXMField::InPort,(uint8_t*)&inPortData,4);
-    fmf.addOXM(OpenFlowOXMField::EthDst,(uint8_t*)&macData[0],6);
-    if (vlan) fmf.addOXM(OpenFlowOXMField::VlanId,(uint8_t*)&vlanData,2);
-    OFFlowModMessage* mod = fmf.getMessage(0,10,1,prio,(uint32_t)OpenFlowPort::Any);
-    uint16_t size = __builtin_bswap16(mod->header.length);
+    u32 inPortData = __builtin_bswap32(in_port);
+    u8 macData[6];
+    u16 vlanData = __builtin_bswap16(vlan | 0x1000);
+    convertMacAddressToNetworkOrder(dst, (u8*)&macData[0]);
+    fmf.addOXM(OpenFlowOXMField::InPort,(u8*)&inPortData,4);
+    fmf.addOXM(OpenFlowOXMField::EthDst,(u8*)&macData[0],6);
+    if (vlan) fmf.addOXM(OpenFlowOXMField::VlanId,(u8*)&vlanData,2);
+    OFFlowModMessage* mod = fmf.getMessage(0,this->getXid(),1,prio,(u32)OpenFlowPort::Any);
+    u16 size = __builtin_bswap16(mod->header.length);
     this->responseHandler->sendMessage((OFMessage*)mod,size);
     delete mod;
 }
 
-void SimpleLearningSwitch::createPacketOut(uint16_t vlan,uint32_t in_port,MacAddress dst, std::vector<OutPortInfo> outPorts, uint32_t bufferId)
+void SimpleLearningSwitch::createPacketOut(u16 vlan,u32 in_port,MacAddress dst, std::vector<OutPortInfo> outPorts, u32 bufferId)
 {
     ActionFactory af;
     PacketOutFactory pof;
@@ -283,27 +296,27 @@ void SimpleLearningSwitch::createPacketOut(uint16_t vlan,uint32_t in_port,MacAdd
         pof.addAction(af.createOutputAction(it.port,0xFFFF));
     }
 
-    OFPacketOutMessage* pom = pof.getMessage(20, bufferId, in_port);
+    OFPacketOutMessage* pom = pof.getMessage(this->getXid(), bufferId, in_port);
     this->responseHandler->sendMessage((OFMessage*)pom,__builtin_bswap16(pom->header.length));
     delete pom;
 }
 
-void SimpleLearningSwitch::createLearningBypassFlow(uint16_t vlan,uint32_t in_port,MacAddress src)
+void SimpleLearningSwitch::createLearningBypassFlow(u16 vlan,u32 in_port,MacAddress src)
 {
-    uint8_t tableId = 0;
-    uint16_t prio = 100;
+    u8 tableId = 0;
+    u16 prio = 100;
     FlowModFactory factory;
 
-    uint32_t inPortData = __builtin_bswap32(in_port);
-    uint16_t vlanData = __builtin_bswap16(vlan | 0x1000);
-    uint8_t macData[6];
-    convertMacAddressToNetworkOrder(src, (uint8_t*)&macData[0]);
-    factory.addOXM(OpenFlowOXMField::InPort,(uint8_t*)&inPortData,4);
-    factory.addOXM(OpenFlowOXMField::EthSrc,(uint8_t*)&macData[0],6);
-    if (vlan) factory.addOXM(OpenFlowOXMField::VlanId,(uint8_t*)&vlanData,2);
+    u32 inPortData = __builtin_bswap32(in_port);
+    u16 vlanData = __builtin_bswap16(vlan | 0x1000);
+    u8 macData[6];
+    convertMacAddressToNetworkOrder(src, (u8*)&macData[0]);
+    factory.addOXM(OpenFlowOXMField::InPort,(u8*)&inPortData,4);
+    factory.addOXM(OpenFlowOXMField::EthSrc,(u8*)&macData[0],6);
+    if (vlan) factory.addOXM(OpenFlowOXMField::VlanId,(u8*)&vlanData,2);
     factory.addGotoTableInstruction(1);
-    OFFlowModMessage* mod = factory.getMessage(0,10,tableId,prio,(uint32_t)OpenFlowPort::Any);
-    uint16_t size = __builtin_bswap16(mod->header.length);
+    OFFlowModMessage* mod = factory.getMessage(0,this->getXid(),tableId,prio,(u32)OpenFlowPort::Any);
+    u16 size = __builtin_bswap16(mod->header.length);
     this->responseHandler->sendMessage((OFMessage*)mod,size);
     delete mod;
 }

@@ -4,26 +4,33 @@
 PacketOutFactory::PacketOutFactory()
 {
     this->actionsSize = 0;
+    this->data = 0;
+    this->dataSize = 0;
 }
 
 void PacketOutFactory::addAction(OFAction* a)
 {
     // The size must be a multiple of 8
-    uint16_t size =  __builtin_bswap16(a->length);
-//    size = (size+7)&~(0xFLL);
+    u16 size =  __builtin_bswap16(a->length);
     this->actionsSize += size; 
     this->actions.push_back(a);
 }
 
-OFPacketOutMessage* PacketOutFactory::getMessage(uint32_t xid, uint32_t bufferId, uint32_t inPort)
+void PacketOutFactory::setData(u8* data, u16 dataSize)
+{
+    this->data = data;
+    this->dataSize = dataSize;
+}
+
+OFPacketOutMessage* PacketOutFactory::getMessage(u32 xid, u32 bufferId, u32 inPort)
 {
     
-    uint16_t size = sizeof(OFPacketOutMessage)+this->actionsSize;
-    uint8_t *buf = new uint8_t[size];
+    u16 size = sizeof(OFPacketOutMessage)+this->actionsSize+this->dataSize;
+    u8 *buf = new u8[size];
     memset(buf,0,size);
     OFPacketOutMessage* po = (OFPacketOutMessage*)(buf);
     po->header.version = OF_VERSION;
-    po->header.type = (uint8_t)OpenFlowMessageType::PacketOut;
+    po->header.type = (u8)OpenFlowMessageType::PacketOut;
     po->header.length = __builtin_bswap16(size);
     po->header.xid = xid;
     po->bufferId = bufferId;
@@ -33,13 +40,19 @@ OFPacketOutMessage* PacketOutFactory::getMessage(uint32_t xid, uint32_t bufferId
     buf+=sizeof(OFPacketOutMessage);
     for (auto& it : this->actions)
     {
-        uint16_t asize = __builtin_bswap16(it->length);
+        u16 asize = __builtin_bswap16(it->length);
         memcpy(buf,it,asize);
- //       asize = (asize+7)&~(0xFLL);
         buf+=asize;
         delete it;
     }
     this->actions.clear();
+
+    if (this->dataSize)
+    {
+        po->bufferId = __builtin_bswap32(0xFFFFFFFF);
+        memcpy(buf,this->data,this->dataSize);
+        delete this->data;
+    }
 
     return po;
 }

@@ -1,7 +1,8 @@
 #include "OpenFlow.h"
 
-void buildMessageHeader(OFMessage*m, OpenFlowMessageType type)
+void buildMessageHeader(OFMessage*m, OpenFlowMessageType type, u32 xid)
 {
     m->version = OF_VERSION;
-    m->type = (uint8_t)type;
+    m->type = (u8)type;
+    m->xid = xid;
 }

@@ -10,5 +10,5 @@ private:
     Client* client;
 
 public:
-    virtual void sendMessage(OFMessage *m, uint16_t size);
+    virtual void sendMessage(OFMessage *m, u16 size);
 };

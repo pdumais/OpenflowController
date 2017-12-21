@@ -3,32 +3,36 @@
 struct OutputAction
 {
     OFAction header;
-    uint32_t port;
-    uint16_t maxLen;
-    uint8_t  pad[6];
+    u32 port;
+    u16 maxLen;
+    u8  pad[6];
 };
 
 struct PushVlanAction
 {
     OFAction header;
-    uint16_t etherType;
-    uint16_t pad;
+    u16 etherType;
+    u16 pad;
 };
 
 struct PopVlanAction
 {
     OFAction header;
-    uint32_t pad;
+    u32 pad;
 };
 
 struct SetVlanAction
 {
     OFAction header;
-    uint16_t vlan;
-    uint16_t pad;
+    u16 vlan;
+    u16 pad;
 };
 
-OFAction* ActionFactory::createSetVlanAction(uint16_t vlan)
+OFAction* ActionFactory::createGotoTableAction(u8 table)
+{
+}
+
+OFAction* ActionFactory::createSetVlanAction(u16 vlan)
 {
     SetVlanAction* a = new SetVlanAction();
     a->header.type = __builtin_bswap16(0x01); // Set-Field
@@ -37,7 +41,7 @@ OFAction* ActionFactory::createSetVlanAction(uint16_t vlan)
     return (OFAction*)a;
 }
 
-OFAction* ActionFactory::createOutputAction(uint32_t port, uint16_t maxLen)
+OFAction* ActionFactory::createOutputAction(u32 port, u16 maxLen)
 {
     OutputAction* a = new OutputAction();
     a->header.type = __builtin_bswap16(0);

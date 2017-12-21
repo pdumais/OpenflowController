@@ -6,7 +6,7 @@
 #define MEMBEROF(v) (this->vlans[v>>6] & (1LL<<(v&0x3F)))
 #define CLEARVLAN(v) this->vlans[v>>6]&=(~(1LL<<(v&0x3F)))
 
-SwitchPort::SwitchPort(uint32_t id, std::string name)
+SwitchPort::SwitchPort(u32 id, std::string name)
 {
     this->name = name;
     this->id = id;
@@ -49,7 +49,7 @@ SwitchPortMode SwitchPort::getMode()
 {
     return (this->state == OF_PORT_STATE_STP_LISTEN) &&
         ((this->config &(OF_PORT_CONFIG_PORT_DOWN))==0) &&
-        (this->id < (uint32_t)OpenFlowPort::Max);
+        (this->id < (u32)OpenFlowPort::Max);
 }
 
 bool SwitchPort::includeInFlood()
@@ -73,14 +73,14 @@ void SwitchPort::toJson(Dumais::JSON::JSON& json)
     }
 }
 
-void SwitchPort::setVlanMembership(uint16_t vlan, bool member)
+void SwitchPort::setVlanMembership(u16 vlan, bool member)
 {
     if (member) SETVLAN(vlan); else CLEARVLAN(vlan);
 }
 
-std::vector<uint16_t> SwitchPort::getVlans()
+std::vector<u16> SwitchPort::getVlans()
 {
-    std::vector<uint16_t> list;
+    std::vector<u16> list;
     int n = 0;
     for (int i=0;i<64;i++)
     {
@@ -98,17 +98,17 @@ std::vector<uint16_t> SwitchPort::getVlans()
     return list;
 }
 
-bool SwitchPort::isMemberOf(uint16_t vlan)
+bool SwitchPort::isMemberOf(u16 vlan)
 {
     return MEMBEROF(vlan);
 }
 
-void SwitchPort::setDefaultVlan(uint16_t vlan)
+void SwitchPort::setDefaultVlan(u16 vlan)
 {
     this->defaultVlan = vlan;
 }
 
-uint16_t SwitchPort::getDefaultVlan()
+u16 SwitchPort::getDefaultVlan()
 {
     return this->defaultVlan;
 }
@@ -119,7 +119,7 @@ void SwitchPort::resetVlanMembership()
     for (int i=0;i<64;i++) this->vlans[i]=0;
 }
 
-uint32_t SwitchPort::getId()
+u32 SwitchPort::getId()
 {
     return this->id;
 }

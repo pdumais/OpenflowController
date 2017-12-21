@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "types.h"
 
 #define OF_VERSION 4 // 1.3
 
@@ -61,24 +62,41 @@ enum class OpenFlowOXMField
     EthDst = 3,
     EthSrc = 4,
     EthType = 5,
-    VlanId = 6
+    VlanId = 6,
+    IpProto = 10,
+    IpSrc = 11,
+    IpDst = 12,
+    TcpSrc = 13,
+    TcpDst = 14,
+    UdpSrc = 15,
+    UdpDst = 16,
+    ArpOp = 21,    
+};
+
+enum class OpenFlowMultiPartTypes
+{
+    Desc = 0,
+    Flow = 1,
+    Table = 3,
+    PortDesc = 13,
+    Experimenter = 0xFFFF
 };
 
 struct OFMessage
 {
-    uint8_t version;
-    uint8_t type;
-    uint16_t length;
-    uint32_t xid;
-    uint8_t payload[];
+    u8 version;
+    u8 type;
+    u16 length;
+    u32 xid;
+    u8 payload[];
 } __attribute__((__packed__));
 
 struct OFPort
 {
     uint32_t id;
     uint32_t pad;
-    uint8_t  addr[6];
-    uint16_t pad2;
+    u8  addr[6];
+    u16 pad2;
     char name[16];
     uint32_t config;
     uint32_t state;
@@ -92,23 +110,23 @@ struct OFPort
 
 struct OFAction
 {
-    uint16_t type;
-    uint16_t length;
+    u16 type;
+    u16 length;
 } __attribute__((__packed__));
 
 struct OFInstruction
 {
-    uint16_t type;
-    uint16_t length;
+    u16 type;
+    u16 length;
 } __attribute__((__packed__));
 
 struct OFOXM
 {
-    uint16_t oclass;
-    uint8_t hashmask:1;
-    uint8_t field:7;
-    uint8_t length;
-    uint8_t data[];
+    u16 oclass;
+    u8 hashmask:1;
+    u8 field:7;
+    u8 length;
+    u8 data[];
 } __attribute__((__packed__));
 
 
@@ -117,14 +135,14 @@ struct OFPacketOutMessage
     OFMessage header;
     uint32_t bufferId;
     uint32_t inPort;
-    uint16_t actionsLength;
-    uint8_t pad[6];
+    u16 actionsLength;
+    u8 pad[6];
 } __attribute__((__packed__));
 
 struct OFMatch
 {
-    uint16_t type;
-    uint16_t length;
+    u16 type;
+    u16 length;
 } __attribute__((__packed__));
 
 struct OFFlowModMessage
@@ -132,16 +150,16 @@ struct OFFlowModMessage
     OFMessage header;
     uint64_t cookie;
     uint64_t cookieMask;
-    uint8_t  tableId;
-    uint8_t  command;
-    uint16_t idleTimeout;
-    uint16_t hardTimeout;
-    uint16_t priority;
+    u8  tableId;
+    u8  command;
+    u16 idleTimeout;
+    u16 hardTimeout;
+    u16 priority;
     uint32_t bufferId;
     uint32_t outPort;
     uint32_t outGroup;
-    uint16_t flags;
-    uint16_t pad;
+    u16 flags;
+    u16 pad;
     OFMatch match;
 } __attribute__((__packed__));
 
@@ -150,8 +168,8 @@ struct OFFlowModMessage
 struct OFSetConfigMessage
 {
     OFMessage header;
-    uint16_t flags;
-    uint16_t missSendLen;
+    u16 flags;
+    u16 missSendLen;
 } __attribute__((__packed__));
 
 struct OFHelloMessage
@@ -167,8 +185,8 @@ struct OFFeatureReqMessage
 struct OFTableModMessage
 {
     OFMessage header;
-    uint8_t tableId;
-    uint8_t pad[3];
+    u8 tableId;
+    u8 pad[3];
     uint32_t config;
 } __attribute__((__packed__));
 
@@ -177,9 +195,9 @@ struct OFFeatureResMessage
     OFMessage header;
     uint64_t datapathId;
     uint32_t nBuffers;
-    uint8_t nTables;
-    uint8_t auxId;
-    uint16_t pad;
+    u8 nTables;
+    u8 auxId;
+    u16 pad;
     uint32_t capabilities;
     uint32_t reserved;
 } __attribute__((__packed__));
@@ -187,34 +205,34 @@ struct OFFeatureResMessage
 struct OFPortStatusMessage
 {
     OFMessage header;
-    uint8_t reason;
-    uint8_t pad[7];
+    u8 reason;
+    u8 pad[7];
     OFPort  port;
 } __attribute__((__packed__));
 
 struct OFMultipartReqMessage
 {
     OFMessage header;
-    uint16_t type;
-    uint16_t flags;
-    uint8_t pad[4];
+    u16 type;
+    u16 flags;
+    u8 pad[4];
 } __attribute__((__packed__));
 
 struct OFMultipartResMessage
 {
     OFMessage header;
-    uint16_t type;
-    uint16_t flags;
-    uint8_t pad[4];
+    u16 type;
+    u16 flags;
+    u8 pad[4];
 } __attribute__((__packed__));
 
 struct OFPacketInMessage
 {                          
     OFMessage header;   
     uint32_t bufferId;  
-    uint16_t totalSize;
-    uint8_t reason;
-    uint8_t table;
+    u16 totalSize;
+    u8 reason;
+    u8 table;
     uint64_t cookie;
     OFMatch match[];
 } __attribute__((__packed__));
@@ -228,4 +246,4 @@ struct OFPacketInMessage
 
 
 
-void buildMessageHeader(OFMessage*m, OpenFlowMessageType type);
+void buildMessageHeader(OFMessage*m, OpenFlowMessageType type, u32 xid);

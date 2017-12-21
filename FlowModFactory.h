@@ -8,15 +8,17 @@ private:
     std::vector<OFInstruction*> instructions;
     std::vector<OFOXM*> oxms;
 
-    uint16_t oxmSize;
-    uint16_t instructionsSize;
+    u16 oxmSize;
+    u16 instructionsSize;
+    uint64_t cookie;
 public:
     FlowModFactory();
     ~FlowModFactory();
     
-    OFFlowModMessage* getMessage(uint8_t command, uint32_t xid, uint8_t tableId, uint16_t priority, uint32_t outPort);
-    void addOXM(OpenFlowOXMField f,uint8_t* data, uint8_t size);
+    OFFlowModMessage* getMessage(u8 command, uint32_t xid, u8 tableId, u16 priority, uint32_t outPort);
+    void addOXM(OpenFlowOXMField f,u8* data, u8 size);
     void addApplyActionInstruction(std::vector<OFAction*> actions);    
-    void addGotoTableInstruction(uint8_t table);
+    void addGotoTableInstruction(u8 table);
+    void setCookie(uint64_t cookie);
 
 };

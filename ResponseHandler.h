@@ -4,5 +4,5 @@
 class ResponseHandler
 {
 public:
-    virtual void sendMessage(OFMessage* m, uint16_t size) = 0;
+    virtual void sendMessage(OFMessage* m, u16 size) = 0;
 };

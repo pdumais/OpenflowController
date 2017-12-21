@@ -3,7 +3,6 @@
 #include "logger.h"
 #include <string.h>
 #include "FlowModFactory.h"
-#include "JSON.h"
 
 OFMultipartRes::OFMultipartRes()
 {
@@ -12,21 +11,20 @@ OFMultipartRes::OFMultipartRes()
 
 void OFMultipartRes::process(IOpenFlowSwitch *s, OFMessage* m)
 {
-    //TODO: check the message type, it could be for something else than ports
     OFMultipartResMessage* mp = (OFMultipartResMessage*)m;
-    int portCount = (__builtin_bswap16(mp->header.length)-sizeof(OFMultipartResMessage))/sizeof(OFPort);
-    LOG("Received ports config for " << portCount << " ports");
-    uint8_t* buf = (uint8_t*)m;
-    buf += sizeof(OFMultipartResMessage);
-
-    for (int i = 0; i < portCount; i++)
+    if (mp->type == __builtin_bswap16((u16)OpenFlowMultiPartTypes::PortDesc))
     {
-        OFPort* p = (OFPort*)buf;
-        s->onPortChanged(p,PortChangeOperation::Add);
-        buf+=sizeof(OFPort);
-    }
+        int portCount = (__builtin_bswap16(mp->header.length)-sizeof(OFMultipartResMessage))/sizeof(OFPort);
+        LOG("Received ports config for " << portCount << " ports");
+        u8* buf = (u8*)m;
+        buf += sizeof(OFMultipartResMessage);
     
-    Dumais::JSON::JSON j;
-    s->toJson(j);
-    LOG("IOpenFlowSwitch: \r\n"<<j.stringify(true));
+        for (int i = 0; i < portCount; i++)
+        {
+            bool moreToCome = (i<(portCount-1));
+            OFPort* p = (OFPort*)buf;
+            s->onPortChanged(p,PortChangeOperation::Add,moreToCome);
+            buf+=sizeof(OFPort);
+        }
+    }
 }

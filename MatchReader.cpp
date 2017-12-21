@@ -3,9 +3,9 @@
 
 MatchReader::MatchReader(OFMatch* match)
 {
-    uint16_t matchSize = __builtin_bswap16(match->length);
-    uint16_t parsed = 0;
-    uint8_t* buf = (uint8_t*)match;
+    u16 matchSize = __builtin_bswap16(match->length);
+    u16 parsed = 0;
+    u8* buf = (u8*)match;
 
     buf+=sizeof(OFMatch);
     parsed+=sizeof(OFMatch);
@@ -28,10 +28,38 @@ MatchReader::~MatchReader()
 }
 
 
-uint32_t MatchReader::getInPort()
+u32 MatchReader::getInPort()
 {
-    if (!this->oxms.count((uint8_t)OpenFlowOXMField::InPort)) return -1;
+    if (!this->oxms.count((u8)OpenFlowOXMField::InPort)) return -1;
     
-    OFOXM* oxm = this->oxms[(uint8_t)OpenFlowOXMField::InPort];
-    return __builtin_bswap32(*((uint32_t*)oxm->data));
+    OFOXM* oxm = this->oxms[(u8)OpenFlowOXMField::InPort];
+    return __builtin_bswap32(*((u32*)oxm->data));
+}
+
+u16 MatchReader::getUdpDstPort()
+{
+    if (!this->oxms.count((u8)OpenFlowOXMField::UdpDst)) return 0;
+    OFOXM* oxm = this->oxms[(u8)OpenFlowOXMField::UdpDst];
+    return __builtin_bswap16(*((u16*)oxm->data));
+}
+
+u16 MatchReader::getUdpSrcPort()
+{
+    if (!this->oxms.count((u8)OpenFlowOXMField::UdpSrc)) return 0;
+    OFOXM* oxm = this->oxms[(u8)OpenFlowOXMField::UdpSrc];
+    return __builtin_bswap16(*((u16*)oxm->data));
+}
+
+u16 MatchReader::getTcpDstPort()
+{
+    if (!this->oxms.count((u8)OpenFlowOXMField::TcpDst)) return 0;
+    OFOXM* oxm = this->oxms[(u8)OpenFlowOXMField::TcpDst];
+    return __builtin_bswap16(*((u16*)oxm->data));
+}
+
+u16 MatchReader::getTcpSrcPort()
+{
+    if (!this->oxms.count((u8)OpenFlowOXMField::TcpSrc)) return 0;
+    OFOXM* oxm = this->oxms[(u8)OpenFlowOXMField::TcpSrc];
+    return __builtin_bswap16(*((u16*)oxm->data));
 }

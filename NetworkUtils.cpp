@@ -1,60 +1,58 @@
 #include "NetworkUtils.h"
 #include <sstream>
 #include <iomanip>
-
-
-std::string getSourceMac(Ethernet* e)
-{
-    std::stringstream mac;
-    mac << std::hex 
-        << std::setfill('0') << std::setw(2) << (int)e->srcMac[0] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)e->srcMac[1] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)e->srcMac[2] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)e->srcMac[3] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)e->srcMac[4] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)e->srcMac[5];
-    return mac.str();
-    
-}
-
-std::string getDestinationMac(Ethernet* e)
-{
-    std::stringstream mac;
-    mac << std::hex 
-        << std::setfill('0') << std::setw(2) << (int)e->dstMac[0] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)e->dstMac[1] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)e->dstMac[2] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)e->dstMac[3] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)e->dstMac[4] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)e->dstMac[5];
-    return mac.str();
-}
+#include <netinet/ip.h>
+#include <arpa/inet.h>
 
 std::string getMacString(MacAddress macAddress)
 {
-    uint8_t* mac = (uint8_t*)&macAddress;
+    u8* mac = (u8*)&macAddress;
     std::stringstream str;
     str << std::hex 
-        << std::setfill('0') << std::setw(2) << (int)mac[0] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)mac[1] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)mac[2] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)mac[3] << ":" 
+        << std::setfill('0') << std::setw(2) << (int)mac[5] << ":" 
         << std::setfill('0') << std::setw(2) << (int)mac[4] << ":" 
-        << std::setfill('0') << std::setw(2) << (int)mac[5];
+        << std::setfill('0') << std::setw(2) << (int)mac[3] << ":" 
+        << std::setfill('0') << std::setw(2) << (int)mac[2] << ":" 
+        << std::setfill('0') << std::setw(2) << (int)mac[1] << ":" 
+        << std::setfill('0') << std::setw(2) << (int)mac[0];
     return str.str();
 }
 
-MacAddress extractMacAddress(uint8_t* addr)
+MacAddress extractMacAddress(u8* addr)
 {
-    uint64_t raw = *((uint64_t*)addr);
+    u64 raw = *((u64*)addr);
     raw = __builtin_bswap64(raw);
     raw = raw >> 16;
     return (MacAddress)raw; 
 }
 
-void convertMacAddressToNetworkOrder(MacAddress mac, uint8_t* buf)
+void convertMacAddressToNetworkOrder(MacAddress mac, u8* buf)
 {
     mac = mac << 16;
     mac = __builtin_bswap64(mac);
-    *((uint64_t*)buf) = mac;
+    *((u64*)buf) = mac;
+}
+
+std::string getCIDRString(u32 ip,u32 mask)
+{
+    //Warning, ip and mask are assumed to be in network byte order
+    std::stringstream str;
+    str << (int)(ip&0xFF) << "." << (int)((ip>>8)&0xFF) << "." << (int)((ip>>16)&0xFF) << "." << (int)((ip>>24)&0xFF);
+    if (mask == 0)
+    {
+        str << "/0";
+    }
+    else
+    {
+        str << "/" << (32-__builtin_clz(mask));
+    }
+    return str.str();
+}
+
+std::string getIPString(u32 ip)
+{
+    //Warning, ip and mask are assumed to be in network byte order
+    std::stringstream str;
+    str << (int)(ip&0xFF) << "." << (int)((ip>>8)&0xFF) << "." << (int)((ip>>16)&0xFF) << "." << (int)((ip>>24)&0xFF);
+    return str.str();
 }

@@ -1,6 +1,5 @@
 #include "OFPortStatus.h"
 #include <stdio.h>
-#include "JSON.h"
 #include "logger.h"
 
 OFPortStatus::OFPortStatus()
@@ -16,22 +15,18 @@ void OFPortStatus::process(IOpenFlowSwitch* s, OFMessage* m)
     {
         case 0: // Add
         {
-            s->onPortChanged(&ps->port,PortChangeOperation::Add);
+            s->onPortChanged(&ps->port,PortChangeOperation::Add,false);
         }
         break;
         case 1: // Delete
         {
-            s->onPortChanged(&ps->port,PortChangeOperation::Delete);
+            s->onPortChanged(&ps->port,PortChangeOperation::Delete,false);
         }
         break;
         case 2: // Modify
         {
-            s->onPortChanged(&ps->port,PortChangeOperation::Modify);
+            s->onPortChanged(&ps->port,PortChangeOperation::Modify,false);
         }
         break;
     }
-
-    Dumais::JSON::JSON j;
-    s->toJson(j);
-    LOG("IOpenFlowSwitch: \r\n"<<j.stringify(true));
 }
