@@ -4,45 +4,25 @@
 #include <vector>
 #include "DHCPServer.h"
 #include "ARPService.h"
+#include "Topology.h"
 
-struct Network
-{
-    u64 id;
-    u32 networkAddress;
-    u32 mask;
-    u32 gateway;
-    u32 dns;
-};
-
-struct Host
-{
-    MacAddress mac;
-    u64 network;
-    u32 port;
-    u32 ip;
-};
 
 class VirtualNetworkSwitch: public OpenFlowSwitch
 {
 private:
-    std::map<u64,Network*> networks;
-    std::map<MacAddress,Host*> hosts;
     DHCPServer* dhcpServer;
     ARPService* arpService;
+    Topology* topology;
 
     void clearFlows(u8 table);
     void setDhcpRequestFlow(Host *h);
     void setArpReplyFlow(Host *h);
-    void setHostFlows(Host *h);
+    void setNetTaggingFlow(Host *h);
+    void setHostForwardFlow(Host *h);
     void setTable0DefaultFlow();
-    void addHost(MacAddress mac,u64 networkId, u32 port, std::string ip); 
-    void addNetwork(u64 id,std::string networkAddress, std::string mask, std::string gw, std::string dns); 
+    void setTable1TunnelFlow();
+    void setTable2TunnelFlow(Host *h);
 
-    Network* getNetworkForHost(Host* h);
-    Host* findHostByMac(MacAddress mac);
-    std::vector<Host*> getHostsInNetwork(Network* n);
-    std::vector<Host*> getNeighbours(Host* h);
-    
 
 public:
     VirtualNetworkSwitch(ResponseHandler* rh);

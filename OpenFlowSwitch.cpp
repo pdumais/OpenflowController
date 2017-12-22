@@ -25,6 +25,11 @@ void OpenFlowSwitch::onInitComplete()
     this->initialized = true;
 }
 
+u64 OpenFlowSwitch::getSwitchId()
+{
+    return this->getDataPathId();
+}
+
 void OpenFlowSwitch::process(OFMessage* m)
 {
     OpenFlowMessageType type = (OpenFlowMessageType)m->type;

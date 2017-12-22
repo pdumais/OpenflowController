@@ -95,7 +95,7 @@ void FlowModFactory::addOXM(OpenFlowOXMField f,u8* data, u8 size)
 
 OFFlowModMessage* FlowModFactory::getMessage(u8 command, u32 xid, u8 tableId, u16 priority, u32 outPort)
 {
-    u16 matchPadSize = 8-((sizeof(OFMatch)+this->oxmSize)&0b111);
+    u16 matchPadSize = (8-((sizeof(OFMatch)+this->oxmSize)&0b111))&0b111;
     u16 size = sizeof(OFFlowModMessage)+this->oxmSize+this->instructionsSize+matchPadSize;
     u8 *buf = new u8[size];
     memset(buf,0,size);

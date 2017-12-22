@@ -16,5 +16,5 @@ void OFEchoReq::process(IOpenFlowSwitch* s, OFMessage* m)
     u16 size = __builtin_bswap16(m->length);
     m->type = (u8)OpenFlowMessageType::EchoRes;
     s->getResponseHandler()->sendMessage(m,size);
-    LOG("Echo request");
+    LOG("Echo request for " << std::hex << s->getSwitchId());
 }

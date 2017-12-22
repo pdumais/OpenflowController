@@ -36,6 +36,7 @@ public:
     virtual ~Switch();
 
     void setDataPathId(uint64_t id);
+    u64 getDataPathId();
 
     void learn(uint32_t inPort, u16 vlanTag, MacAddress mac);
     OutPortResult getOutPorts(uint32_t inPort, u16 vlanTag, MacAddress mac);
@@ -46,7 +47,7 @@ public:
     bool setPortState(uint32_t index, SwitchPortState s);
     bool setPortModeTrunk(uint32_t index, std::vector<u16> vlans, u16 defaultVlan);
     bool setPortModeAccess(uint32_t index, u16 vlan);
-
+    bool portExists(u32 id);
 
     void toJson(Dumais::JSON::JSON& json);    
 };

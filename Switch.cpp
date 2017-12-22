@@ -24,7 +24,15 @@ void Switch::setDataPathId(u64 id)
     LOG("New switch with id "<< std::hex << id << " discovered");
 }
 
+u64 Switch::getDataPathId()
+{
+    return this->dataPathId;
+}
 
+bool Switch::portExists(u32 id)
+{
+    return (this->ports.count(id)!=0);
+}
 
 bool Switch::addPort(u32 index, std::string name)
 {
@@ -203,3 +211,4 @@ OutPortResult Switch::getOutPorts(u32 inPort, u16 vlanTag, MacAddress mac)
 
     return result;
 }
+

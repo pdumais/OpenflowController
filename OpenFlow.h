@@ -71,6 +71,7 @@ enum class OpenFlowOXMField
     UdpSrc = 15,
     UdpDst = 16,
     ArpOp = 21,    
+    TunnelId = 38
 };
 
 enum class OpenFlowMultiPartTypes

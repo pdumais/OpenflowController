@@ -20,4 +20,5 @@ public:
     virtual ResponseHandler* getResponseHandler() = 0;
     virtual void toJson(Dumais::JSON::JSON& json) =0;    
     virtual u32 getXid() = 0;
+    virtual u64 getSwitchId() = 0;
 };

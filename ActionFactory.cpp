@@ -15,12 +15,6 @@ struct PushVlanAction
     u16 pad;
 };
 
-struct PopVlanAction
-{
-    OFAction header;
-    u32 pad;
-};
-
 struct SetVlanAction
 {
     OFAction header;
@@ -28,14 +22,57 @@ struct SetVlanAction
     u16 pad;
 };
 
+struct PopVlanAction
+{
+    OFAction header;
+    u32 pad;
+};
+
+struct SetFieldAction
+{
+    OFAction header;
+    OFOXM oxm;
+};
+
 OFAction* ActionFactory::createGotoTableAction(u8 table)
 {
+}
+
+OFAction* ActionFactory::createSetTunIdAction(u64 id)
+{
+    u16 msgSize = sizeof(SetFieldAction)+8;
+    u8* buf = new u8[msgSize];
+    SetFieldAction* a = (SetFieldAction*)buf; 
+    a->header.type = __builtin_bswap16(25); // Set-Field
+    a->header.length = __builtin_bswap16(msgSize);
+    a->oxm.oclass = __builtin_bswap16(0x8000);
+    a->oxm.field = 38; // tunnel_id
+    a->oxm.hashmask = 0;
+    a->oxm.length = 8;
+    *((u64*)a->oxm.data) = __builtin_bswap64(id);
+    return (OFAction*)a;
+}
+
+OFAction* ActionFactory::createSetTunDstAction(u32 dst)
+{
+    u16 msgSize = sizeof(SetFieldAction)+4+4; // 4 bytes padding
+    u8* buf = new u8[msgSize];
+    SetFieldAction* a = (SetFieldAction*)buf; 
+    a->header.type = __builtin_bswap16(25); // Set-Field
+    a->header.length = __builtin_bswap16(msgSize);
+    a->oxm.oclass = __builtin_bswap16(0x0001); //NXM
+    a->oxm.field = 32; // tun_dst
+    a->oxm.hashmask = 0;
+    a->oxm.length = 4;
+    *((u32*)a->oxm.data) = __builtin_bswap32(dst);
+    *((u32*)&a->oxm.data[4]) = 0; 
+    return (OFAction*)a;
 }
 
 OFAction* ActionFactory::createSetVlanAction(u16 vlan)
 {
     SetVlanAction* a = new SetVlanAction();
-    a->header.type = __builtin_bswap16(0x01); // Set-Field
+    a->header.type = __builtin_bswap16(0x01); // Set-Vlan
     a->header.length = __builtin_bswap16(sizeof(SetVlanAction));
     a->vlan = __builtin_bswap16(vlan);
     return (OFAction*)a;

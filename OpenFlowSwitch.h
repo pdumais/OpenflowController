@@ -26,6 +26,7 @@ public:
     virtual void onPacketIn(EthernetFrame* frame, u16 size, MatchReader *mr, u8 table, uint32_t bufferId, uint64_t cookie) = 0;
     virtual void onPortChanged(OFPort* p, PortChangeOperation op, bool moreToCome) = 0;
     virtual u32 getXid();
+    virtual u64 getSwitchId();
 
     ResponseHandler* getResponseHandler();
     void toJson(Dumais::JSON::JSON& json);    

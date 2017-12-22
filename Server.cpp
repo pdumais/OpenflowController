@@ -123,15 +123,15 @@ void Server::process()
 
 bool Server::processClientMessage(Client* c)
 {
-    if (c->expect == 0) 
-    {
-        c->expect = sizeof(OFMessage);
-        c->index = 0;
-    }
 
     int n = 1;
     while (1)
     {
+        if (c->expect == 0) 
+        {
+            c->expect = sizeof(OFMessage);
+            c->index = 0;
+        }
         int toReceive = (c->expect-c->index);
 
         n = recv(c->s, (char*)&c->buffer[c->index],toReceive,0);
@@ -152,7 +152,6 @@ bool Server::processClientMessage(Client* c)
             {
                 c->expect = 0;
                 this->onMessage(m,c);
-                return true;
             }    
         }
         else if (n == 0)

@@ -67,4 +67,7 @@ ovs-vsctl add-port sw1 v6br
 
 
 To create a tunnel:
-ovs-vsctl add-port sw1 vtun1 -- set interface vtun1 type=vxlan options:remote_ip=192.168.1.216 options:key=to216
+ovs-vsctl add-port sw1 vtun1 -- set interface vtun1 type=vxlan options:remote_ip=flow options:key=flow
+
+To make DHCP request:
+ip netns exec tn1 dhclient v1if -v
