@@ -15,8 +15,8 @@ services.a:
 	cd services && make
 
 app: $(OBJ) ipstack.a services.a main.o switch-test.o
-	g++ $(OBJ) main.o dumaislib/lib/dumaislib.a services/services.a ipstack/ipstack.a
-	g++ $(OBJ) switch-test.o dumaislib/lib/dumaislib.a services/services.a ipstack/ipstack.a -o switch-test
+	g++ $(OBJ) main.o Dumaislib/lib/dumaislib.a services/services.a ipstack/ipstack.a
+	g++ $(OBJ) switch-test.o Dumaislib/lib/dumaislib.a services/services.a ipstack/ipstack.a -o switch-test
 
 clean:
 	-rm *.o
