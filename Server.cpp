@@ -15,31 +15,43 @@
 #include "ControllerResponseHandler.h"
 #include "SimpleLearningSwitch.h"
 #include "VirtualNetworkSwitch.h"
-
+#include "appframework/ModuleRepository.h"
 #define PACKET_SIZE 2048
 
-Server::Server()
+Server::Server(std::string listenAddress)
 {
+    this->listenAddress = listenAddress;
     this->server = 0;
 }
 
 Server::~Server()
 {
-    LOG("Destroying server");
-    
-    for (auto& it : this->clients)
-    {
-        close(it.second->s);
-    }
+}
 
+void Server::destroy()
+{
+    LOG("Destroying server");
+
+    this->eventScheduler->unSubscribe(&Server::handleManagementEvent,this);
     if (this->server)
     {
         LOG("Shuting down listening port");
         shutdown(this->server,0);
     }
+
+    for (auto& it : this->clients)
+    {
+        close(it.second->s);
+    }
 }
 
-bool Server::init(char* addr)
+void Server::init(ModuleRepository* repository)
+{
+    this->eventScheduler = repository->get<EventScheduler>();
+    this->eventScheduler->subscribe(&Server::handleManagementEvent,this);
+}
+
+void Server::initReactorModule()
 {
     this->maxConnections = 5;
 
@@ -49,81 +61,63 @@ bool Server::init(char* addr)
     fcntl(s, F_SETFL, flags | O_NONBLOCK);
     sockaddr_in sockadd;
     sockadd.sin_family=AF_INET;
-    sockadd.sin_addr.s_addr=inet_addr(addr);
+    sockadd.sin_addr.s_addr=inet_addr(this->listenAddress.c_str());
     sockadd.sin_port=htons(6633);
     int r = 1;
     setsockopt(s,SOL_SOCKET,SO_REUSEADDR,&r,sizeof(r));
-    if (bind(s,(struct sockaddr *)&sockadd,sizeof(sockadd))<0) return false;
+    if (bind(s,(struct sockaddr *)&sockadd,sizeof(sockadd))<0)
+    {
+        LOG("Could not bind");
+        return;
+    }
     listen(s,this->maxConnections);
 
-    // create control pipe
-    /*this->controlEventFd = eventfd(0,EFD_NONBLOCK);
-    if (this->controlEventFd == -1) return false;*/
-
-    this->efd = epoll_create1(0);
-    addFdToEpoll(this->efd,s);
-    //addFdToEpoll(efd, this->controlEventFd);
-    events = new epoll_event[this->maxConnections + 2];
+    this->addFD(s);
     this->server = s;
 
     LOG("Server started listening");
-    return true;
 }
 
-void Server::addFdToEpoll(int efd, int fd)
+bool Server::work(int fd)
 {
-    struct epoll_event ev;
-
-    ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
-    ev.data.fd = fd;
-    epoll_ctl(efd, EPOLL_CTL_ADD, fd, &ev);
-}
-
-void Server::process()
-{
-    int n = epoll_wait(efd, events, this->maxConnections + 2, -1);
-    for (int i = 0; i < n; i++)
+    if (fd == this->server)
     {
-        if (events[i].data.fd == this->server)
+        int r = accept(this->server, 0, 0);
+        if (r > 0)
         {
-            int r = accept(this->server, 0, 0);
-            if (r > 0)
-            {
-                int flags = fcntl(r,F_GETFL,0);
-                fcntl(r, F_SETFL, flags | O_NONBLOCK);
-                addFdToEpoll(this->efd,r);
-                Client *c = new Client();
-                c->s = r;
-                c->expect = 0;
-                c->index = 0;
+            int flags = fcntl(r,F_GETFL,0);
+            fcntl(r, F_SETFL, flags | O_NONBLOCK);
+            this->addFD(r);
+            Client *c = new Client();
+            c->s = r;
+            c->expect = 0;
+            c->index = 0;
 
-                ControllerResponseHandler* rh = new ControllerResponseHandler();
-                rh->server = this;
-                rh->client = c;
-                //c->netSwitch = new SimpleLearningSwitch(rh);
-                c->netSwitch = new VirtualNetworkSwitch(rh);
-                this->clients[r] = c;
-                LOG("New switch connected");
-            }
-            else    
-            {
-                //TODO: Deal with failures
-                LOG("ERROR: accept: "<<r<<", errno="<<errno);
-            }
+            ControllerResponseHandler* rh = new ControllerResponseHandler();
+            rh->server = this;
+            rh->client = c;
+            c->netSwitch = new VirtualNetworkSwitch(rh);
+            this->clients[r] = c;
+            LOG("New switch connected");
         }
-        else
+        else    
         {
-            if (events[i].events & EPOLLIN)
-            {
-                processClientMessage(clients[events[i].data.fd]);
-            }
+            //TODO: Deal with failures
+            LOG("ERROR: accept: "<<r<<", errno="<<errno);
         }
     }
+    else
+    {
+        if (this->clients.count(fd))
+        {
+            processClientMessage(this->clients[fd]);
+        }
+    }
+    return false;
 }
 
 bool Server::processClientMessage(Client* c)
 {
-
     int n = 1;
     while (1)
     {
@@ -198,3 +192,7 @@ void Server::onMessage(OFMessage* m, Client* c)
     c->netSwitch->process(m);
 }
 
+void Server::handleManagementEvent(ManagementEvent* m)
+{
+    LOG("Management Event");
+}

@@ -4,6 +4,10 @@
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include "OpenFlowSwitch.h"
+#include "appframework/ReactorModule.h"
+#include "appframework/EventScheduler.h"
+#include "Events.h"
+#include <thread>
 
 struct Client 
 {
@@ -14,24 +18,31 @@ struct Client
     OpenFlowSwitch *netSwitch;
 };
 
-class Server
+class Server: public ReactorModule
 {
 private:
     int server;
     int client;
-    int efd;
     int maxConnections;
-    struct epoll_event *events;
+    bool stop;
+    EventScheduler* eventScheduler;
+    std::string listenAddress;
     std::map<int,Client*> clients;
 
-    void addFdToEpoll(int efd, int fd);
     bool processClientMessage(Client *c);
     void onMessage(OFMessage* m, Client *c);
 
 public:
-    Server();
+    Server(std::string listenAddress);
     ~Server();
-    bool init(char* addr);
-    void process();
+
+    virtual void initReactorModule();
+    virtual bool work(int fd);
+
+    virtual void init(ModuleRepository* repository);
+    virtual void destroy();
+
+    void handleManagementEvent(ManagementEvent* m);
+
     void sendMessage(OFMessage* m, Client* c, u16 size);
 };
