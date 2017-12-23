@@ -16,22 +16,43 @@ Topology::Topology()
     u8 mac2[] = {0xba,0xce,0xa6,0x08,0xb6,0x67};
     u8 mac3[] = {0x3e,0xd4,0x89,0xc5,0xd5,0xec};
     u8 mac4[] = {0xb2,0x5b,0x4e,0x49,0x85,0x59};
-    u8 mac5[] = {0x5a,0x54,0xc5,0xe5,0x6b,0x27};
-    u8 mac6[] = {0x6e,0xbf,0x3f,0x55,0x16,0x6a};
+    u8 mac5[] = {0x8a,0x14,0x11,0xf1,0x3d,0xc9};
+    u8 mac6[] = {0x8e,0x2b,0xb5,0x39,0x03,0x64};
     u8 mac7[] = {0x7e,0xcc,0x09,0x63,0xaa,0x6f};
     u8 mac8[] = {0xea,0x3d,0xe4,0xbc,0xb6,0x9f};
+    u8 mac9[] = {0x74,0x4b,0xc6,0x95,0x18,0x73};
+    u8 mac10[] = {0x86,0x95,0x72,0x30,0xf5,0xac};
+    u8 mac11[] = {0x5e,0x9f,0x86,0x77,0x6e,0x87};
+    u8 mac12[] = {0x52,0x21,0xf7,0x11,0xa6,0x10};
+
+    // We define the hypervisor with their datapath ID and management IP
     this->addBridge(0x32d1f6ddc94f,"192.168.1.216");
     this->addBridge(0x4e7879903e4c,"192.168.1.2");
+    
+    // Define overlay networks: id, net, mask, GW ip, DNS server
     this->addNetwork(1,"10.0.0.0","255.255.255.0","10.0.0.254","10.0.0.250");
     this->addNetwork(2,"10.0.0.0","255.255.255.0","10.0.0.253","10.0.0.249");
+    this->addNetwork(3,"192.168.5.0","255.255.255.0","192.168.5.253","192.168.5.249");
+
+    // We will create 1 router to be able to route between network 1 and 3
+    // We can route between 1 and 2 because they have the same network address
+    this->addRouter(0x00bbccddee00);
+    this->addNetworkToRouter(this->routers[0x00bbccddee00],this->networks[1]);
+    this->addNetworkToRouter(this->routers[0x00bbccddee00],this->networks[2]);
+    
+    // Define the hosts: max, network ID, port, IP, hypervisor ID
     this->addHost(extractMacAddress((u8*)mac1),1,1,"10.0.0.1",0x32d1f6ddc94f);
     this->addHost(extractMacAddress((u8*)mac2),1,2,"10.0.0.2",0x32d1f6ddc94f);
     this->addHost(extractMacAddress((u8*)mac3),2,3,"10.0.0.1",0x32d1f6ddc94f);
     this->addHost(extractMacAddress((u8*)mac4),2,4,"10.0.0.2",0x32d1f6ddc94f);
-    this->addHost(extractMacAddress((u8*)mac5),1,5,"10.0.0.3",0x32d1f6ddc94f);
-    this->addHost(extractMacAddress((u8*)mac6),2,6,"10.0.0.3",0x32d1f6ddc94f);
+    this->addHost(extractMacAddress((u8*)mac5),3,5,"192.168.5.1",0x32d1f6ddc94f);
+    this->addHost(extractMacAddress((u8*)mac6),3,6,"192.168.5.2",0x32d1f6ddc94f);
     this->addHost(extractMacAddress((u8*)mac7),1,1,"10.0.0.4",0x4e7879903e4c);
     this->addHost(extractMacAddress((u8*)mac8),1,2,"10.0.0.5",0x4e7879903e4c);
+    this->addHost(extractMacAddress((u8*)mac9),2,4,"10.0.0.4",0x4e7879903e4c);
+    this->addHost(extractMacAddress((u8*)mac10),2,5,"10.0.0.5",0x4e7879903e4c);
+    this->addHost(extractMacAddress((u8*)mac11),3,6,"192.168.5.3",0x4e7879903e4c);
+    this->addHost(extractMacAddress((u8*)mac12),3,7,"192.168.5.4",0x4e7879903e4c);
 }
 
 Topology::~Topology()
@@ -145,4 +166,18 @@ u32 Topology::getBridgeAddressForHost(Host* h)
     if (!h) return 0;
     if (!this->bridges.count(h->bridge)) return 0;
     return this->bridges[h->bridge]->address;
+}
+
+void Topology::addRouter(MacAddress mac)
+{
+    Router* n = new Router();
+    n->mac = mac;
+    this->routers[mac] = n;
+}
+
+void Topology::addNetworkToRouter(Router* r, Network* n)
+{
+    if (!n) return;
+    if (!r) return;
+    r->networks.push_back(n);
 }

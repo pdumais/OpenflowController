@@ -1,0 +1,73 @@
+ip netns add tn1
+ip netns add tn2
+ip netns add tn3
+ip netns add tn4
+ip netns add tn5
+ip netns add tn6
+
+ip link add v1br type veth peer name v1if
+ip link add v2br type veth peer name v2if
+ip link add v3br type veth peer name v3if
+ip link add v4br type veth peer name v4if
+ip link add v5br type veth peer name v5if
+ip link add v6br type veth peer name v6if
+
+ip link set v1br up
+ip link set v2br up
+ip link set v3br up
+ip link set v4br up
+ip link set v5br up
+ip link set v6br up
+
+ip link set v1if netns tn1
+ip link set v2if netns tn2
+ip link set v3if netns tn3
+ip link set v4if netns tn4
+ip link set v5if netns tn5
+ip link set v6if netns tn6
+
+ip netns exec tn5 ip link add link v5if name v5if.100 type vlan id 100
+ip netns exec tn5 ip link add link v5if name v5if.200 type vlan id 200
+ip netns exec tn6 ip link add link v6if name v6if.100 type vlan id 100
+ip netns exec tn6 ip link add link v6if name v6if.200 type vlan id 200
+
+ip netns exec tn1 ip add add 10.0.0.1/29 dev v1if
+ip netns exec tn2 ip add add 10.0.0.2/29 dev v2if
+ip netns exec tn3 ip add add 10.0.1.1/29 dev v3if
+ip netns exec tn4 ip add add 10.0.1.2/29 dev v4if
+ip netns exec tn5 ip add add 10.0.0.3/29 dev v5if.100
+ip netns exec tn5 ip add add 10.0.1.3/29 dev v5if.200
+ip netns exec tn6 ip add add 10.0.0.4/29 dev v6if.100
+ip netns exec tn6 ip add add 10.0.1.4/29 dev v6if.200
+
+ip netns exec tn5 ip link set promisc on v5if
+ip netns exec tn6 ip link set promisc on v6if
+ip netns exec tn1 ip link set v1if up
+ip netns exec tn2 ip link set v2if up
+ip netns exec tn3 ip link set v3if up
+ip netns exec tn4 ip link set v4if up
+ip netns exec tn5 ip link set v5if.100 up
+ip netns exec tn6 ip link set v6if.100 up
+ip netns exec tn5 ip link set v5if.200 up
+ip netns exec tn6 ip link set v6if.200 up
+
+
+ovs-vsctl add-br sw1 -- set bridge sw1 protocols=OpenFlow13
+ovs-vsctl set-controller sw1 tcp:192.168.1.3:6633
+
+ovs-vsctl add-port sw1 v1br
+ovs-vsctl add-port sw1 v2br
+ovs-vsctl add-port sw1 v3br
+ovs-vsctl add-port sw1 v4br
+ovs-vsctl add-port sw1 v5br
+ovs-vsctl add-port sw1 v6br
+
+
+#ip netns exec tn1 ping 10.0.0.4
+
+
+To create a tunnel:
+ovs-vsctl add-port sw1 vtun1 -- set interface vtun1 type=vxlan options:remote_ip=flow options:key=flow
+
+To make DHCP request:
+ip netns exec tn1 dhclient v1if -v

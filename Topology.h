@@ -28,12 +28,19 @@ struct Bridge
     u32 address;
 };
 
+struct Router
+{
+    MacAddress mac;
+    std::vector<Network*> networks;
+};
+
 class Topology
 {
 private:
     std::map<u64,Network*> networks;
     std::map<MacAddress,Host*> hosts;
     std::map<u64,Bridge*> bridges;
+    std::map<u64,Router*> routers;
     static Topology* instance;
 
 public:
@@ -42,6 +49,8 @@ public:
 
     static Topology* getInstance();
 
+    void addRouter(MacAddress mac);
+    void addNetworkToRouter(Router* r, Network* n);
     void addBridge(u64 id, std::string ip);
     void addHost(MacAddress mac,u64 networkId, u32 port, std::string ip, u64 hv); 
     void addNetwork(u64 id,std::string networkAddress, std::string mask, std::string gw, std::string dns); 

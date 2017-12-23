@@ -12,7 +12,7 @@
 #include "NetworkUtils.h"
 #include "PacketOutFactory.h"
 #include "logger.h"
-#include "JSON.h"
+#include "json/JSON.h"
 
 
 #define COOKIE_FLOW_DHCP 1

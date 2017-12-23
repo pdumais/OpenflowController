@@ -13,4 +13,8 @@ Files:
                               the behaviour of an L2 switch supporting vlans.
 * testnet.txt: Commands used to create my testing environment
 
+The folder "dumaislib" is a precompiled binary output of my dumaislib library that
+contains JSON, rest and webserver functionalities. That library can be found in my
+github repos also.
+
 For more details about the SimpleLearningSwitch implementation: http://www.dumais.io/index.php?article=42968ec40e79c2eb3632de0b0f68af87

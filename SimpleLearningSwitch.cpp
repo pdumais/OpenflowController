@@ -13,7 +13,7 @@
 #include "PacketOutFactory.h"
 #include "logger.h"
 #include "Ethernet.h"
-#include "JSON.h"
+#include "json/JSON.h"
 
 SimpleLearningSwitch::SimpleLearningSwitch(ResponseHandler* rh): OpenFlowSwitch(rh)
 {
