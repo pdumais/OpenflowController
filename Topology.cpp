@@ -2,8 +2,7 @@
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include "NetworkUtils.h"
-
-Topology* Topology::instance;
+#include "logger.h"
 
 Topology::Topology()
 {
@@ -59,10 +58,12 @@ Topology::~Topology()
 {
 }
 
-Topology* Topology::getInstance()
+void Topology::init(ModuleRepository* repository)
 {
-    if (!Topology::instance) Topology::instance = new Topology();
-    return Topology::instance;
+}
+
+void Topology::destroy()
+{
 }
 
 std::vector<Host*> Topology::getHosts()
@@ -180,4 +181,51 @@ void Topology::addNetworkToRouter(Router* r, Network* n)
     if (!n) return;
     if (!r) return;
     r->networks.push_back(n);
+}
+
+void Topology::toJson(Dumais::JSON::JSON& j)
+{
+    
+    Dumais::JSON::JSON& jo1 = j.addList("routers");
+    for (auto& it : this->routers)
+    {
+        Dumais::JSON::JSON& j3 = jo1.addObject();
+        j3.addValue(getMacString(it.second->mac),"id");
+        Dumais::JSON::JSON& j4 = j3.addList("networks");
+        for (auto& it2 : it.second->networks)
+        {
+            j4.addValue(std::to_string(it2->id));
+        }
+    }
+
+    Dumais::JSON::JSON& jo2 = j.addList("networks");
+    for (auto& it : this->networks)
+    {
+        Dumais::JSON::JSON& j3 = jo2.addObject();
+        j3.addValue(std::to_string(it.second->id),"id");
+        j3.addValue(getIPString(it.second->networkAddress),"network");
+        j3.addValue(getIPString(it.second->mask),"mask");
+        j3.addValue(getIPString(it.second->gateway),"gateway");
+        j3.addValue(getIPString(it.second->dns),"dns");
+    }
+    
+    Dumais::JSON::JSON& jo3 = j.addList("hosts");
+    for (auto& it : this->hosts)
+    {
+        Dumais::JSON::JSON& j3 = jo3.addObject();
+        j3.addValue(getMacString(it.second->mac),"mac");
+        j3.addValue(std::to_string(it.second->port),"port");
+        j3.addValue(std::to_string(it.second->bridge),"hypervisor");
+        j3.addValue(std::to_string(it.second->network),"network");
+        j3.addValue(getIPString(it.second->ip),"ip");
+    }
+    
+    Dumais::JSON::JSON& jo4 = j.addList("hypervisors");
+    for (auto& it : this->bridges)
+    {
+        Dumais::JSON::JSON& j3 = jo4.addObject();
+        j3.addValue(getIPString(it.second->address),"ip");
+        j3.addValue(std::to_string(it.second->dataPathId),"id");
+    }
+    
 }

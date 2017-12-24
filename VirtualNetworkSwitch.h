@@ -5,7 +5,7 @@
 #include "DHCPServer.h"
 #include "ARPService.h"
 #include "Topology.h"
-
+#include "json/JSON.h"
 
 class VirtualNetworkSwitch: public OpenFlowSwitch
 {
@@ -25,10 +25,12 @@ private:
 
 
 public:
-    VirtualNetworkSwitch(ResponseHandler* rh);
+    VirtualNetworkSwitch(ResponseHandler* rh, Topology* t);
     virtual ~VirtualNetworkSwitch();
 
     virtual void onFeatureResponse(u64 dataPathId);
     virtual void onPacketIn(EthernetFrame* frame, u16 size, MatchReader* mr, u8 table, u32 bufferId, u64 cookie);
     virtual void onPortChanged(OFPort* p, PortChangeOperation op, bool moreToCome);
+
+    virtual void toJson(Dumais::JSON::JSON& j);
 };

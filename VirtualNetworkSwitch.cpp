@@ -33,9 +33,9 @@ but using the NXM oclass
 
 */
 
-VirtualNetworkSwitch::VirtualNetworkSwitch(ResponseHandler* rh): OpenFlowSwitch(rh)
+VirtualNetworkSwitch::VirtualNetworkSwitch(ResponseHandler* rh, Topology* t): OpenFlowSwitch(rh)
 {
-    this->topology = Topology::getInstance();
+    this->topology = t;
 
     this->addHandler(new OFHello());
     this->addHandler(new OFError());
@@ -428,3 +428,7 @@ void VirtualNetworkSwitch::setTable0DefaultFlow()
 }
 
 
+void VirtualNetworkSwitch::toJson(Dumais::JSON::JSON& j)
+{
+    OpenFlowSwitch::toJson(j);
+}

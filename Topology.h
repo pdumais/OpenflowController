@@ -3,6 +3,8 @@
 #include <vector>
 #include <map>
 #include "types.h"
+#include "appframework/ModuleRepository.h"
+#include "json/JSON.h"
 
 struct Network
 {
@@ -34,21 +36,21 @@ struct Router
     std::vector<Network*> networks;
 };
 
-class Topology
+class Topology: public Module
 {
 private:
     std::map<u64,Network*> networks;
     std::map<MacAddress,Host*> hosts;
     std::map<u64,Bridge*> bridges;
     std::map<u64,Router*> routers;
-    static Topology* instance;
 
 public:
     Topology();
     ~Topology();
 
-    static Topology* getInstance();
 
+    virtual void init(ModuleRepository* repository);                 
+    virtual void destroy();                                          
     void addRouter(MacAddress mac);
     void addNetworkToRouter(Router* r, Network* n);
     void addBridge(u64 id, std::string ip);
@@ -61,4 +63,6 @@ public:
     std::vector<Host*> getNeighbours(Host* h);
     std::vector<Host*> getHosts();
     u32 getBridgeAddressForHost(Host* h);    
+
+    void toJson(Dumais::JSON::JSON& j);
 };

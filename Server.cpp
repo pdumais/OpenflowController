@@ -47,6 +47,7 @@ void Server::destroy()
 
 void Server::init(ModuleRepository* repository)
 {
+    this->repository = repository;   
     this->eventScheduler = repository->get<EventScheduler>();
     this->eventScheduler->subscribe(&Server::handleManagementEvent,this);
 }
@@ -96,7 +97,7 @@ bool Server::work(int fd)
             ControllerResponseHandler* rh = new ControllerResponseHandler();
             rh->server = this;
             rh->client = c;
-            c->netSwitch = new VirtualNetworkSwitch(rh);
+            c->netSwitch = new VirtualNetworkSwitch(rh, repository->get<Topology>());
             this->clients[r] = c;
             LOG("New switch connected");
         }
@@ -195,4 +196,14 @@ void Server::onMessage(OFMessage* m, Client* c)
 void Server::handleManagementEvent(ManagementEvent* m)
 {
     LOG("Management Event");
+}
+
+void Server::dumpSwitches(Dumais::JSON::JSON& j)
+{
+    j.addList("switches");
+    for (auto& it : this->clients)
+    {
+        Dumais::JSON::JSON& j2 = j["switches"].addObject();
+        it.second->netSwitch->toJson(j2);
+    }
 }

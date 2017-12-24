@@ -8,6 +8,7 @@
 #include "appframework/EventScheduler.h"
 #include "Events.h"
 #include <thread>
+#include "json/JSON.h"
 
 struct Client 
 {
@@ -26,6 +27,7 @@ private:
     int maxConnections;
     bool stop;
     EventScheduler* eventScheduler;
+    ModuleRepository* repository;
     std::string listenAddress;
     std::map<int,Client*> clients;
 
@@ -45,4 +47,6 @@ public:
     void handleManagementEvent(ManagementEvent* m);
 
     void sendMessage(OFMessage* m, Client* c, u16 size);
+
+    void dumpSwitches(Dumais::JSON::JSON& j);
 };

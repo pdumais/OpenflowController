@@ -6,6 +6,7 @@
 #include "appframework/Reactor.h"
 #include "management/Management.h"
 #include "Events.h"
+#include "Topology.h"
 
 #include "logger.h"
 
@@ -46,6 +47,9 @@ int main(int argc, char **argv)
 
     Management* management = new Management();
     repo->add(management);
+
+    Topology* topology = new Topology();
+    repo->add(topology);
 
     //signal(SIGSEGV, handler);
     signal(SIGTERM, termHandler);

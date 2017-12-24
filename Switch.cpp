@@ -88,6 +88,7 @@ bool Switch::setPortState(u32 index, SwitchPortState s)
 
 void Switch::toJson(Dumais::JSON::JSON& json)
 {
+    json.addValue(std::to_string(this->dataPathId),"datapathid");
     json.addList("ports");
     for (auto& it : this->ports)
     {

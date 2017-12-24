@@ -2,3 +2,6 @@
 *.pcap
 todo
 bak
+a.out
+*.a
+*-test
