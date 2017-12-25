@@ -20,8 +20,10 @@ private:
     void setNetTaggingFlow(Host *h);
     void setHostForwardFlow(Host *h);
     void setTable0DefaultFlow();
+    void setTable2DefaultFlow();
+    void setTable2GatewayFlows(Router* r);
     void setTable1TunnelFlow();
-    void setTable2TunnelFlow(Host *h);
+    void setTable3TunnelFlow(Host *h);
 
 
 public:

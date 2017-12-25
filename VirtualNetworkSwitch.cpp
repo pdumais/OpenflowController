@@ -87,9 +87,11 @@ void VirtualNetworkSwitch::onFeatureResponse(u64 dataPathId)
     this->clearFlows(1);
     this->clearFlows(2);
     this->clearFlows(3);
+    this->clearFlows(4);
 
     // If we dont hit table0, goto table1
     this->setTable0DefaultFlow();
+    this->setTable2DefaultFlow();
     this->setTable1TunnelFlow();
     for (auto& it : this->topology->getHosts())
     {
@@ -114,7 +116,12 @@ void VirtualNetworkSwitch::onFeatureResponse(u64 dataPathId)
         // Table 2 contains a flow for every known hosts across the whole
         // system
         setHostForwardFlow(it);
-        setTable2TunnelFlow(it);
+        setTable3TunnelFlow(it);
+    }
+
+    for (auto& it : this->topology->getRouters())
+    {
+        setTable2GatewayFlows(it);
     }
 
     this->onInitComplete();
@@ -166,6 +173,15 @@ void VirtualNetworkSwitch::onPacketIn(EthernetFrame* eth, u16 size, MatchReader*
                     if (it->ip == target)
                     {
                         reply = it->mac;
+                        return true;
+                    }
+                }
+                if (target == net->gateway)
+                {
+                    Router* router = this->topology->getRouterForNetwork(net);
+                    if (router)
+                    {
+                        reply = router->mac;
                         return true;
                     }
                 }
@@ -242,68 +258,17 @@ void VirtualNetworkSwitch::clearFlows(u8 table)
     delete mod;
 }
 
-// For all local ports, we add a flow in t1 that
-// sets the tunnel_id to the netId and then jump to t2
-void VirtualNetworkSwitch::setNetTaggingFlow(Host *h)
+void VirtualNetworkSwitch::setTable0DefaultFlow()
 {
-    u8 tableId = 1;
-    u16 prio = 300;
-    
-    // We don't need to install DHCP/ARP flows non local ports
-    if (h->bridge != this->getDataPathId()) return;
-
     FlowModFactory factory;
-    ActionFactory af;
-
-    u32 inPortData = __builtin_bswap32(h->port);
-    u32 srcIP = h->ip;
-    u16 ethTypeData =  __builtin_bswap16(0x0800);
-    u8 macDataSrc[6];
-    convertMacAddressToNetworkOrder(h->mac, (u8*)&macDataSrc[0]);
-    
-    factory.addOXM(OpenFlowOXMField::InPort,(u8*)&inPortData,4);
-    factory.addOXM(OpenFlowOXMField::EthSrc,(u8*)&macDataSrc[0],6);
-    factory.addOXM(OpenFlowOXMField::EthType,(u8*)&ethTypeData,2);
-    factory.addOXM(OpenFlowOXMField::IpSrc,(u8*)&srcIP,4);
-
-    OFAction* setTunIdAction = af.createSetTunIdAction(h->network);
-    factory.addApplyActionInstruction({setTunIdAction});
-    factory.addGotoTableInstruction(2);
-    OFFlowModMessage* mod = factory.getMessage(0,this->getXid(),tableId,prio,(u32)OpenFlowPort::Any);
+ 
+    factory.addGotoTableInstruction(1);
+    OFFlowModMessage* mod = factory.getMessage(0,this->getXid(),0,0,0);
     u16 size = __builtin_bswap16(mod->header.length);
     this->responseHandler->sendMessage((OFMessage*)mod,size);
     delete mod;
 }
 
-void VirtualNetworkSwitch::setHostForwardFlow(Host *h)
-{
-    u8 tableId = 2;
-    u16 prio = 300;
-   
-    //TODO: if it is a remote host, set tun_dst and forward through tun 
-    if (h->bridge != this->getDataPathId()) return;
-
-    FlowModFactory factory;
-    ActionFactory af;
-
-    u32 dstIP = h->ip;
-    u64 tunIdData = __builtin_bswap64(h->network);
-    u16 ethTypeData =  __builtin_bswap16(0x0800);
-    u8 macDataDst[6];
-    convertMacAddressToNetworkOrder(h->mac, (u8*)&macDataDst[0]);
-    
-    factory.addOXM(OpenFlowOXMField::EthDst,(u8*)&macDataDst[0],6);
-    factory.addOXM(OpenFlowOXMField::EthType,(u8*)&ethTypeData,2);
-    factory.addOXM(OpenFlowOXMField::IpDst,(u8*)&dstIP,4);
-    factory.addOXM(OpenFlowOXMField::TunnelId,(u8*)&tunIdData,8);
-
-    OFAction* outputAction = af.createOutputAction(h->port,0xFFFF);
-    factory.addApplyActionInstruction({outputAction});
-    OFFlowModMessage* mod = factory.getMessage(0,this->getXid(),tableId,prio,(u32)OpenFlowPort::Any);
-    u16 size = __builtin_bswap16(mod->header.length);
-    this->responseHandler->sendMessage((OFMessage*)mod,size);
-    delete mod;
-}
 
 void VirtualNetworkSwitch::setDhcpRequestFlow(Host *h)
 {
@@ -367,6 +332,39 @@ void VirtualNetworkSwitch::setArpReplyFlow(Host *h)
     delete mod;
 }
 
+// For all local ports, we add a flow in t1 that
+// sets the tunnel_id to the netId and then jump to t2
+void VirtualNetworkSwitch::setNetTaggingFlow(Host *h)
+{
+    u8 tableId = 1;
+    u16 prio = 300;
+    
+    // We don't need to install DHCP/ARP flows non local ports
+    if (h->bridge != this->getDataPathId()) return;
+
+    FlowModFactory factory;
+    ActionFactory af;
+
+    u32 inPortData = __builtin_bswap32(h->port);
+    u32 srcIP = h->ip;
+    u16 ethTypeData =  __builtin_bswap16(0x0800);
+    u8 macDataSrc[6];
+    convertMacAddressToNetworkOrder(h->mac, (u8*)&macDataSrc[0]);
+    
+    factory.addOXM(OpenFlowOXMField::InPort,(u8*)&inPortData,4);
+    factory.addOXM(OpenFlowOXMField::EthSrc,(u8*)&macDataSrc[0],6);
+    factory.addOXM(OpenFlowOXMField::EthType,(u8*)&ethTypeData,2);
+    factory.addOXM(OpenFlowOXMField::IpSrc,(u8*)&srcIP,4);
+
+    OFAction* setTunIdAction = af.createSetTunIdAction(h->network);
+    factory.addApplyActionInstruction({setTunIdAction});
+    factory.addGotoTableInstruction(2);
+    OFFlowModMessage* mod = factory.getMessage(0,this->getXid(),tableId,prio,(u32)OpenFlowPort::Any);
+    u16 size = __builtin_bswap16(mod->header.length);
+    this->responseHandler->sendMessage((OFMessage*)mod,size);
+    delete mod;
+}
+
 void VirtualNetworkSwitch::setTable1TunnelFlow()
 {
     u8 tableId = 1;
@@ -377,18 +375,74 @@ void VirtualNetworkSwitch::setTable1TunnelFlow()
     u32 inPortData = __builtin_bswap32(TUNNEL_PORT);
     factory.addOXM(OpenFlowOXMField::InPort,(u8*)&inPortData,4);
 
-    factory.addGotoTableInstruction(2);
-//  OFAction* sendToControllerAction = af.createOutputAction((u32)OpenFlowPort::Controller,0xFFFF);
-//  factory.addApplyActionInstruction({sendToControllerAction});
+    // When comming from tunnel, we can jump directly to the host forwarding flow
+    factory.addGotoTableInstruction(3);
     OFFlowModMessage* mod = factory.getMessage(0,this->getXid(),tableId,prio,(u32)OpenFlowPort::Any);
     u16 size = __builtin_bswap16(mod->header.length);
     this->responseHandler->sendMessage((OFMessage*)mod,size);
     delete mod;
 }
 
-void VirtualNetworkSwitch::setTable2TunnelFlow(Host* h)
+void VirtualNetworkSwitch::setTable2DefaultFlow()
+{
+    FlowModFactory factory;
+    u8 tableId = 2;
+ 
+    factory.addGotoTableInstruction(3);
+    OFFlowModMessage* mod = factory.getMessage(0,this->getXid(),tableId,0,0);
+    u16 size = __builtin_bswap16(mod->header.length);
+    this->responseHandler->sendMessage((OFMessage*)mod,size);
+    delete mod;
+}
+
+void VirtualNetworkSwitch::setTable2GatewayFlows(Router* r)
 {
     u8 tableId = 2;
+    u16 prio = 100;
+
+    u8 macData[6];
+    convertMacAddressToNetworkOrder(r->mac, (u8*)&macData[0]);
+    u16 ethTypeData =  __builtin_bswap16(0x0800);
+
+    for (auto& it : r->networks)
+    {
+        Network* src = it;
+        for (auto& it2 : r->networks)
+        {
+            Network* dst = it2;
+
+            struct 
+            {
+                u32 ip;
+                u32 mask;
+            } dstIP;
+            dstIP.ip = dst->networkAddress;
+            dstIP.mask = dst->mask;
+
+            ActionFactory af;
+            FlowModFactory factory;
+            u64 srcTunId = __builtin_bswap64(src->id);
+            factory.addOXM(OpenFlowOXMField::TunnelId,(u8*)&srcTunId,8);
+            factory.addOXM(OpenFlowOXMField::EthDst,(u8*)&macData[0],6);
+            factory.addOXM(OpenFlowOXMField::EthType,(u8*)&ethTypeData,2);
+            factory.addOXM(OpenFlowOXMField::IpDst,(u8*)&dstIP,8,true);
+
+            OFAction* setTunIdAction = af.createSetTunIdAction(dst->id);
+            OFAction* setSrcMacAction = af.createSetSrcMacAction((u8*)&macData[0]);
+            factory.addApplyActionInstruction({setSrcMacAction,setTunIdAction});
+            factory.addGotoTableInstruction(3);
+            OFFlowModMessage* mod = factory.getMessage(0,this->getXid(),tableId,prio,(u32)OpenFlowPort::Any);
+            u16 size = __builtin_bswap16(mod->header.length);
+            this->responseHandler->sendMessage((OFMessage*)mod,size);
+            delete mod;
+        }
+    
+    }
+}
+
+void VirtualNetworkSwitch::setTable3TunnelFlow(Host* h)
+{
+    u8 tableId = 3;
     u16 prio = 400;
     FlowModFactory factory;
     ActionFactory af;
@@ -397,10 +451,10 @@ void VirtualNetworkSwitch::setTable2TunnelFlow(Host* h)
     if (h->bridge == this->getDataPathId()) return;
 
     u16 ethTypeData =  __builtin_bswap16(0x0800);
-    u8 macData[6];
     u32 dstIP = h->ip;
-    convertMacAddressToNetworkOrder(h->mac, (u8*)&macData[0]);
-    factory.addOXM(OpenFlowOXMField::EthDst,(u8*)&macData[0],6);
+    //u8 macData[6];
+    //convertMacAddressToNetworkOrder(h->mac, (u8*)&macData[0]);
+    //factory.addOXM(OpenFlowOXMField::EthDst,(u8*)&macData[0],6);
     factory.addOXM(OpenFlowOXMField::EthType,(u8*)&ethTypeData,2);
     factory.addOXM(OpenFlowOXMField::IpDst,(u8*)&dstIP,4);
 
@@ -416,16 +470,36 @@ void VirtualNetworkSwitch::setTable2TunnelFlow(Host* h)
     delete mod;
 }
 
-void VirtualNetworkSwitch::setTable0DefaultFlow()
+void VirtualNetworkSwitch::setHostForwardFlow(Host *h)
 {
+    u8 tableId = 3;
+    u16 prio = 300;
+   
+    if (h->bridge != this->getDataPathId()) return;
+
     FlowModFactory factory;
- 
-    factory.addGotoTableInstruction(1);
-    OFFlowModMessage* mod = factory.getMessage(0,this->getXid(),0,0,0);
+    ActionFactory af;
+
+    u32 dstIP = h->ip;
+    u64 tunIdData = __builtin_bswap64(h->network);
+    u16 ethTypeData =  __builtin_bswap16(0x0800);
+
+    u8 macDataDst[6];
+    convertMacAddressToNetworkOrder(h->mac, (u8*)&macDataDst[0]);
+
+    factory.addOXM(OpenFlowOXMField::EthType,(u8*)&ethTypeData,2);
+    factory.addOXM(OpenFlowOXMField::IpDst,(u8*)&dstIP,4);
+    factory.addOXM(OpenFlowOXMField::TunnelId,(u8*)&tunIdData,8);
+
+    OFAction* setDstMacAction = af.createSetDstMacAction((u8*)&macDataDst[0]);
+    OFAction* outputAction = af.createOutputAction(h->port,0xFFFF);
+    factory.addApplyActionInstruction({setDstMacAction,outputAction});
+    OFFlowModMessage* mod = factory.getMessage(0,this->getXid(),tableId,prio,(u32)OpenFlowPort::Any);
     u16 size = __builtin_bswap16(mod->header.length);
     this->responseHandler->sendMessage((OFMessage*)mod,size);
     delete mod;
 }
+
 
 
 void VirtualNetworkSwitch::toJson(Dumais::JSON::JSON& j)

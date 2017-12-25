@@ -16,7 +16,7 @@ public:
     ~FlowModFactory();
     
     OFFlowModMessage* getMessage(u8 command, uint32_t xid, u8 tableId, u16 priority, uint32_t outPort);
-    void addOXM(OpenFlowOXMField f,u8* data, u8 size);
+    void addOXM(OpenFlowOXMField f,u8* data, u8 size, bool mask=false);
     void addApplyActionInstruction(std::vector<OFAction*> actions);    
     void addGotoTableInstruction(u8 table);
     void setCookie(uint64_t cookie);

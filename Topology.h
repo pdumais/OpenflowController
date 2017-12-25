@@ -59,9 +59,11 @@ public:
 
     Network* getNetworkForHost(Host* h);
     Host* findHostByMac(MacAddress mac);
+    Router* getRouterForNetwork(Network *net);
     std::vector<Host*> getHostsInNetwork(Network* n);
     std::vector<Host*> getNeighbours(Host* h);
     std::vector<Host*> getHosts();
+    std::vector<Router*> getRouters();
     u32 getBridgeAddressForHost(Host* h);    
 
     void toJson(Dumais::JSON::JSON& j);

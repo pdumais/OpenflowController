@@ -15,6 +15,13 @@ struct PushVlanAction
     u16 pad;
 };
 
+struct SetMacAction
+{
+    OFAction header;
+    u8  mac[6];
+    u8  pad[6];
+};
+
 struct SetVlanAction
 {
     OFAction header;
@@ -36,6 +43,27 @@ struct SetFieldAction
 
 OFAction* ActionFactory::createGotoTableAction(u8 table)
 {
+}
+
+OFAction* ActionFactory::createSetSrcMacAction(u8 *mac)
+{
+    SetMacAction* a = new SetMacAction();
+    a->header.type = __builtin_bswap16(3); 
+    a->header.length = __builtin_bswap16(sizeof(SetMacAction));
+    for (int i=0;i<6;i++) a->mac[i]=mac[i];
+    for (int i=0;i<6;i++) a->mac[i+6]=0;
+    
+    return (OFAction*)a;
+}
+OFAction* ActionFactory::createSetDstMacAction(u8 *mac)
+{
+    SetMacAction* a = new SetMacAction();
+    a->header.type = __builtin_bswap16(4); 
+    a->header.length = __builtin_bswap16(sizeof(SetMacAction));
+    for (int i=0;i<6;i++) a->mac[i]=mac[i];
+    for (int i=0;i<6;i++) a->mac[i+6]=0;
+    
+    return (OFAction*)a;
 }
 
 OFAction* ActionFactory::createSetTunIdAction(u64 id)

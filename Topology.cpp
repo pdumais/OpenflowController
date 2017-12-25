@@ -37,7 +37,7 @@ Topology::Topology()
     // We can route between 1 and 2 because they have the same network address
     this->addRouter(0x00bbccddee00);
     this->addNetworkToRouter(this->routers[0x00bbccddee00],this->networks[1]);
-    this->addNetworkToRouter(this->routers[0x00bbccddee00],this->networks[2]);
+    this->addNetworkToRouter(this->routers[0x00bbccddee00],this->networks[3]);
     
     // Define the hosts: max, network ID, port, IP, hypervisor ID
     this->addHost(extractMacAddress((u8*)mac1),1,1,"10.0.0.1",0x32d1f6ddc94f);
@@ -64,6 +64,13 @@ void Topology::init(ModuleRepository* repository)
 
 void Topology::destroy()
 {
+}
+
+std::vector<Router*> Topology::getRouters()
+{
+    std::vector<Router*> list;
+    for (auto& it : this->routers) list.push_back(it.second);
+    return list;
 }
 
 std::vector<Host*> Topology::getHosts()
@@ -228,4 +235,19 @@ void Topology::toJson(Dumais::JSON::JSON& j)
         j3.addValue(std::to_string(it.second->dataPathId),"id");
     }
     
+}
+
+Router* Topology::getRouterForNetwork(Network *net)
+{
+    if (!net) return 0;
+
+    for (auto& it : this->routers)
+    {
+        for (auto& n : it.second->networks)
+        {
+            if (n->id == net->id) return it.second;
+        }
+    }
+
+    return 0;
 }

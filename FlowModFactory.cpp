@@ -75,7 +75,7 @@ void FlowModFactory::addApplyActionInstruction(std::vector<OFAction*> actions)
     this->instructions.push_back((OFInstruction*)ins);
 }
 
-void FlowModFactory::addOXM(OpenFlowOXMField f,u8* data, u8 size)
+void FlowModFactory::addOXM(OpenFlowOXMField f,u8* data, u8 size, bool mask)
 {
     u8 msgSize = sizeof(OFOXM)+size;
     u8* buf = new u8[msgSize];
@@ -83,7 +83,7 @@ void FlowModFactory::addOXM(OpenFlowOXMField f,u8* data, u8 size)
 
     oxm->oclass = __builtin_bswap16(0x8000);
     oxm->field = (u8)f;
-    oxm->hashmask = 0;
+    oxm->hashmask = mask?1:0;
     oxm->length = size;
 
     buf+=sizeof(OFOXM);
