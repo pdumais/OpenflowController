@@ -455,6 +455,8 @@ void VirtualNetworkSwitch::setTable3TunnelFlow(Host* h)
     //u8 macData[6];
     //convertMacAddressToNetworkOrder(h->mac, (u8*)&macData[0]);
     //factory.addOXM(OpenFlowOXMField::EthDst,(u8*)&macData[0],6);
+    u64 srcTunId = __builtin_bswap64(h->network);
+    factory.addOXM(OpenFlowOXMField::TunnelId,(u8*)&srcTunId,8);
     factory.addOXM(OpenFlowOXMField::EthType,(u8*)&ethTypeData,2);
     factory.addOXM(OpenFlowOXMField::IpDst,(u8*)&dstIP,4);
 
