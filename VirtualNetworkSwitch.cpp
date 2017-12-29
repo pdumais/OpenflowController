@@ -33,8 +33,9 @@ but using the NXM oclass
 
 */
 
-VirtualNetworkSwitch::VirtualNetworkSwitch(ResponseHandler* rh, Topology* t): OpenFlowSwitch(rh)
+VirtualNetworkSwitch::VirtualNetworkSwitch(ResponseHandler* rh, Topology* t, EventScheduler *es): OpenFlowSwitch(rh)
 {
+    this->eventScheduler = es;
     this->topology = t;
 
     this->addHandler(new OFHello());
@@ -88,41 +89,13 @@ void VirtualNetworkSwitch::onFeatureResponse(u64 dataPathId)
     this->clearFlows(2);
     this->clearFlows(3);
     this->clearFlows(4);
-
-    // If we dont hit table0, goto table1
     this->setTable0DefaultFlow();
     this->setTable2DefaultFlow();
     this->setTable1TunnelFlow();
-    for (auto& it : this->topology->getHosts())
-    {
-        //TODO: We should add those flows only if the port of the host is up.
-        // If the VM is down (thus, port would be down?) we don't benefit from 
-        // having those rules in place. It  could probably give a performance gain to the switch
-        // if we set as less flows as possible
 
-        // Intercept DHCP requests from  table 0
-        // The controller knows about all hosts that are allowed  to be on the network
-        // So it knows what IP should be associated to which MAC.
-        setDhcpRequestFlow(it);
-
-        // Intercept ARP requests from  table 0
-        // The controller knows about all hosts that are allowed  to be on the network
-        // So it is able to respond to ARP queries
-        setArpReplyFlow(it);
-
-        // Set the t1 flow that will set the tun_id and jump to t2
-        setNetTaggingFlow(it);
-
-        // Table 2 contains a flow for every known hosts across the whole
-        // system
-        setHostForwardFlow(it);
-        setTable3TunnelFlow(it);
-    }
-
-    for (auto& it : this->topology->getRouters())
-    {
-        setTable2GatewayFlows(it);
-    }
+    NewSwitchEvent ev;
+    ev.obj = this;
+    this->eventScheduler->send(&ev);
 
     this->onInitComplete();
 }
@@ -395,49 +368,39 @@ void VirtualNetworkSwitch::setTable2DefaultFlow()
     delete mod;
 }
 
-void VirtualNetworkSwitch::setTable2GatewayFlows(Router* r)
+void VirtualNetworkSwitch::setTable2GatewayFlows(Network* src, Network *dst, MacAddress gw)
 {
     u8 tableId = 2;
     u16 prio = 100;
 
     u8 macData[6];
-    convertMacAddressToNetworkOrder(r->mac, (u8*)&macData[0]);
+    convertMacAddressToNetworkOrder(gw, (u8*)&macData[0]);
     u16 ethTypeData =  __builtin_bswap16(0x0800);
 
-    for (auto& it : r->networks)
+    struct 
     {
-        Network* src = it;
-        for (auto& it2 : r->networks)
-        {
-            Network* dst = it2;
+        u32 ip;
+        u32 mask;
+    } dstIP;
+    dstIP.ip = dst->networkAddress;
+    dstIP.mask = dst->mask;
 
-            struct 
-            {
-                u32 ip;
-                u32 mask;
-            } dstIP;
-            dstIP.ip = dst->networkAddress;
-            dstIP.mask = dst->mask;
+    ActionFactory af;
+    FlowModFactory factory;
+    u64 srcTunId = __builtin_bswap64(src->id);
+    factory.addOXM(OpenFlowOXMField::TunnelId,(u8*)&srcTunId,8);
+    factory.addOXM(OpenFlowOXMField::EthDst,(u8*)&macData[0],6);
+    factory.addOXM(OpenFlowOXMField::EthType,(u8*)&ethTypeData,2);
+    factory.addOXM(OpenFlowOXMField::IpDst,(u8*)&dstIP,8,true);
 
-            ActionFactory af;
-            FlowModFactory factory;
-            u64 srcTunId = __builtin_bswap64(src->id);
-            factory.addOXM(OpenFlowOXMField::TunnelId,(u8*)&srcTunId,8);
-            factory.addOXM(OpenFlowOXMField::EthDst,(u8*)&macData[0],6);
-            factory.addOXM(OpenFlowOXMField::EthType,(u8*)&ethTypeData,2);
-            factory.addOXM(OpenFlowOXMField::IpDst,(u8*)&dstIP,8,true);
-
-            OFAction* setTunIdAction = af.createSetTunIdAction(dst->id);
-            OFAction* setSrcMacAction = af.createSetSrcMacAction((u8*)&macData[0]);
-            factory.addApplyActionInstruction({setSrcMacAction,setTunIdAction});
-            factory.addGotoTableInstruction(3);
-            OFFlowModMessage* mod = factory.getMessage(0,this->getXid(),tableId,prio,(u32)OpenFlowPort::Any);
-            u16 size = __builtin_bswap16(mod->header.length);
-            this->responseHandler->sendMessage((OFMessage*)mod,size);
-            delete mod;
-        }
-    
-    }
+    OFAction* setTunIdAction = af.createSetTunIdAction(dst->id);
+    OFAction* setSrcMacAction = af.createSetSrcMacAction((u8*)&macData[0]);
+    factory.addApplyActionInstruction({setSrcMacAction,setTunIdAction});
+    factory.addGotoTableInstruction(3);
+    OFFlowModMessage* mod = factory.getMessage(0,this->getXid(),tableId,prio,(u32)OpenFlowPort::Any);
+    u16 size = __builtin_bswap16(mod->header.length);
+    this->responseHandler->sendMessage((OFMessage*)mod,size);
+    delete mod;
 }
 
 void VirtualNetworkSwitch::setTable3TunnelFlow(Host* h)
@@ -507,4 +470,53 @@ void VirtualNetworkSwitch::setHostForwardFlow(Host *h)
 void VirtualNetworkSwitch::toJson(Dumais::JSON::JSON& j)
 {
     OpenFlowSwitch::toJson(j);
+}
+
+void VirtualNetworkSwitch::onRouteChanged(Network* from, Network* to, MacAddress gw, bool added)
+{
+    LOG("Router changed: " << added);
+    if (added)
+    {
+        setTable2GatewayFlows(from,to,gw);
+    }
+}
+
+void VirtualNetworkSwitch::onHostChanged(Host* o, bool added)
+{
+    LOG("Host changed: " << added);
+    if (added)
+    {
+        //TODO: We should add those flows only if the port of the host is up.
+        // If the VM is down (thus, port would be down?) we don't benefit from 
+        // having those rules in place. It  could probably give a performance gain to the switch
+        // if we set as less flows as possible
+
+        // Intercept DHCP requests from  table 0
+        // The controller knows about all hosts that are allowed  to be on the network
+        // So it knows what IP should be associated to which MAC.
+        setDhcpRequestFlow(o);
+
+        // Intercept ARP requests from  table 0
+        // The controller knows about all hosts that are allowed  to be on the network
+        // So it is able to respond to ARP queries
+        setArpReplyFlow(o);
+
+        // Set the t1 flow that will set the tun_id and jump to t2
+        setNetTaggingFlow(o);
+
+        // Table 2 contains a flow for every known hosts across the whole
+        // system
+        setHostForwardFlow(o);
+        setTable3TunnelFlow(o);
+    }
+}
+
+void VirtualNetworkSwitch::onNetworkChanged(Network* o, bool added)
+{
+    LOG("Network changed: " << added);
+}
+
+void VirtualNetworkSwitch::onBridgeChanged(Bridge* o, bool added)
+{
+    LOG("Bridge changed: " << added);
 }

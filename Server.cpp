@@ -33,6 +33,10 @@ void Server::destroy()
     LOG("Destroying server");
 
     this->eventScheduler->unSubscribe(&Server::handleManagementEvent,this);
+    this->eventScheduler->unSubscribe(&Server::onNetworkChanged,this);
+    this->eventScheduler->unSubscribe(&Server::onBridgeChanged,this);
+    this->eventScheduler->unSubscribe(&Server::onHostChanged,this);
+    this->eventScheduler->unSubscribe(&Server::onRouteChanged,this);
     if (this->server)
     {
         LOG("Shuting down listening port");
@@ -50,6 +54,10 @@ void Server::init(ModuleRepository* repository)
     this->repository = repository;   
     this->eventScheduler = repository->get<EventScheduler>();
     this->eventScheduler->subscribe(&Server::handleManagementEvent,this);
+    this->eventScheduler->subscribe(&Server::onNetworkChanged,this);
+    this->eventScheduler->subscribe(&Server::onBridgeChanged,this);
+    this->eventScheduler->subscribe(&Server::onHostChanged,this);
+    this->eventScheduler->subscribe(&Server::onRouteChanged,this);
 }
 
 void Server::initReactorModule()
@@ -97,7 +105,7 @@ bool Server::work(int fd)
             ControllerResponseHandler* rh = new ControllerResponseHandler();
             rh->server = this;
             rh->client = c;
-            c->netSwitch = new VirtualNetworkSwitch(rh, repository->get<Topology>());
+            c->netSwitch = new VirtualNetworkSwitch(rh, repository->get<Topology>(),this->eventScheduler);
             this->clients[r] = c;
             LOG("New switch connected");
         }
@@ -205,5 +213,65 @@ void Server::dumpSwitches(Dumais::JSON::JSON& j)
     {
         Dumais::JSON::JSON& j2 = j["switches"].addObject();
         it.second->netSwitch->toJson(j2);
+    }
+}
+
+void Server::onNetworkChanged(NetworkChangedEvent* ev)
+{
+    if (ev->sw)
+    {
+        ev->sw->onNetworkChanged(ev->obj,ev->added);
+    }
+    else
+    {
+        for (auto& it : this->clients)
+        {
+            it.second->netSwitch->onNetworkChanged(ev->obj,ev->added);
+        }
+    }
+}
+
+void Server::onBridgeChanged(BridgeChangedEvent* ev)
+{
+    if (ev->sw)
+    {
+        ev->sw->onBridgeChanged(ev->obj,ev->added);
+    }
+    else
+    {
+        for (auto& it : this->clients)
+        {
+            it.second->netSwitch->onBridgeChanged(ev->obj,ev->added);
+        }
+    }
+}
+
+void Server::onHostChanged(HostChangedEvent* ev)
+{
+    if (ev->sw)
+    {
+        ev->sw->onHostChanged(ev->obj,ev->added);
+    }
+    else
+    {
+        for (auto& it : this->clients)
+        {
+            it.second->netSwitch->onHostChanged(ev->obj,ev->added);
+        }
+    }
+}
+
+void Server::onRouteChanged(RouteChangedEvent* ev)
+{
+    if (ev->sw)
+    {
+        ev->sw->onRouteChanged(ev->from,ev->to,ev->gw,ev->added);
+    }
+    else
+    {
+        for (auto& it : this->clients)
+        {
+            it.second->netSwitch->onRouteChanged(ev->from,ev->to,ev->gw,ev->added);
+        }
     }
 }

@@ -29,8 +29,24 @@ void Management::init(ModuleRepository* repository)
 
     RESTCallBack *getSwitch = new RESTCallBack(this,&Management::onGetSwitch,"Retrieve switches information");
     RESTCallBack *getTopology = new RESTCallBack(this,&Management::onGetTopology,"Retrieve virtual networks topology");
+    RESTCallBack *postRouter = new RESTCallBack(this,&Management::onPostRouter,"Create new router");
+    RESTCallBack *postHost = new RESTCallBack(this,&Management::onPostHost,"Create new host");
+    RESTCallBack *postNetwork = new RESTCallBack(this,&Management::onPostNetwork,"Create new network");
+    RESTCallBack *postBridge = new RESTCallBack(this,&Management::onPostBridge,"Create new bridge");
+    RESTCallBack *delRouter = new RESTCallBack(this,&Management::onDelRouter,"Delete router");
+    RESTCallBack *delHost = new RESTCallBack(this,&Management::onDelHost,"Delete host");
+    RESTCallBack *delNetwork = new RESTCallBack(this,&Management::onDelNetwork,"Delete network");
+    RESTCallBack *delBridge = new RESTCallBack(this,&Management::onDelBridge,"Delete bridge");
     this->rest->addCallBack("/switch","get",getSwitch);
     this->rest->addCallBack("/topology","get",getTopology);
+    this->rest->addCallBack("/router","post",postRouter);
+    this->rest->addCallBack("/host","post",postHost);
+    this->rest->addCallBack("/network","post",postNetwork);
+    this->rest->addCallBack("/bridge","post",postBridge);
+    this->rest->addCallBack("/router","delete",delRouter);
+    this->rest->addCallBack("/host","delete",delHost);
+    this->rest->addCallBack("/network","delete",delNetwork);
+    this->rest->addCallBack("/bridge","delete",delBridge);
 
     this->webServer->start();
 }
@@ -87,6 +103,7 @@ void Management::onConnectionOpen()
 {
 }
 
+
 void Management::onConnectionClosed()
 {
 }
@@ -106,3 +123,53 @@ void Management::onGetTopology(RESTContext* context)
     Dumais::JSON::JSON& json = context->returnData;
     this->repository->get<Topology>()->toJson(json);
 }
+
+void Management::onPostRouter(RESTContext* context) 
+{
+    MacAddress mac;
+    this->repository->get<Topology>()->addRouter(mac);
+}
+
+void Management::onPostHost(RESTContext* context)
+{
+    MacAddress mac;
+    u64 networkId;
+    u32 port;
+    std::string ip;
+    u64 hv;
+    this->repository->get<Topology>()->addHost(mac,networkId,port,ip,hv);
+}
+
+void Management::onPostNetwork(RESTContext* context)
+{
+    u64 id;
+    std::string networkAddress;
+    std::string mask;
+    std::string gw;
+    std::string dns;
+    this->repository->get<Topology>()->addNetwork(id,networkAddress, mask, gw, dns);
+}
+
+void Management::onPostBridge(RESTContext* context)
+{
+    u64 id;
+    std::string ip;
+    this->repository->get<Topology>()->addBridge(id,ip);
+}
+
+void Management::onDelRouter(RESTContext* context)
+{
+}
+
+void Management::onDelHost(RESTContext* context)
+{
+}
+
+void Management::onDelNetwork(RESTContext* context)
+{
+}
+
+void Management::onDelBridge(RESTContext* context) 
+{
+}
+

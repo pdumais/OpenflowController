@@ -48,5 +48,10 @@ public:
 
     void sendMessage(OFMessage* m, Client* c, u16 size);
 
+    void onNetworkChanged(NetworkChangedEvent* ev);   
+    void onBridgeChanged(BridgeChangedEvent* ev);   
+    void onHostChanged(HostChangedEvent* ev);   
+    void onRouteChanged(RouteChangedEvent* ev);   
+
     void dumpSwitches(Dumais::JSON::JSON& j);
 };

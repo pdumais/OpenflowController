@@ -3,9 +3,21 @@
 #include <arpa/inet.h>
 #include "NetworkUtils.h"
 #include "logger.h"
+#include "Events.h"
 
 Topology::Topology()
 {
+}
+
+Topology::~Topology()
+{
+}
+
+void Topology::init(ModuleRepository* repository)
+{
+    this->eventScheduler = repository->get<EventScheduler>();
+    this->eventScheduler->subscribe(&Topology::onNewSwitch,this);
+
     //TODO: this should be stored in a db and should change
     // dynamically.
     // We assign hosts with the ports they are connected on and the datapathid
@@ -54,16 +66,9 @@ Topology::Topology()
     this->addHost(extractMacAddress((u8*)mac12),3,7,"192.168.5.4",0x4e7879903e4c);
 }
 
-Topology::~Topology()
-{
-}
-
-void Topology::init(ModuleRepository* repository)
-{
-}
-
 void Topology::destroy()
 {
+    this->eventScheduler->unSubscribe(&Topology::onNewSwitch,this);
 }
 
 std::vector<Router*> Topology::getRouters()
@@ -89,11 +94,27 @@ void Topology::addBridge(u64 id, std::string ip)
     inet_pton(AF_INET, ip.c_str(), &(sa.sin_addr));
     bridge->address = sa.sin_addr.s_addr;
     this->bridges[id] = bridge;
+
+    BridgeChangedEvent ev;
+    ev.added = true;
+    ev.obj = bridge;
+    this->eventScheduler->send(&ev);
 }
 
 void Topology::addHost(MacAddress mac,u64 network, u32 port, std::string ip, u64 bridge)
 {
     struct sockaddr_in sa;
+
+    if (this->networks.count(network) == 0)
+    {
+        LOG("Network doesn't exist");
+        return;
+    }
+    if (this->bridges.count(bridge) == 0)
+    {
+        LOG("Bridge doesn't exist");
+        return;
+    }
 
     Host *host = new Host();
     host->mac = mac;
@@ -104,6 +125,11 @@ void Topology::addHost(MacAddress mac,u64 network, u32 port, std::string ip, u64
     inet_pton(AF_INET, ip.c_str(), &(sa.sin_addr));
     host->ip = sa.sin_addr.s_addr;
     this->hosts[mac] = host;
+
+    HostChangedEvent ev;
+    ev.added = true;
+    ev.obj = host;
+    this->eventScheduler->send(&ev);
 }
 
 void Topology::addNetwork(u64 id,std::string networkAddress, std::string mask, std::string gw, std::string dns)
@@ -126,6 +152,11 @@ void Topology::addNetwork(u64 id,std::string networkAddress, std::string mask, s
     net->dns = sa.sin_addr.s_addr;
 
     this->networks[id] = net;
+
+    NetworkChangedEvent ev;
+    ev.added = true;
+    ev.obj = net;
+    this->eventScheduler->send(&ev);
 }
 
 Network* Topology::getNetworkForHost(Host* h)
@@ -187,6 +218,24 @@ void Topology::addNetworkToRouter(Router* r, Network* n)
 {
     if (!n) return;
     if (!r) return;
+
+    for (auto& it2 : r->networks)
+    {
+        Network* src = it2;
+        Network* dst = n;
+
+        RouteChangedEvent ev;
+        ev.from = src;
+        ev.to = dst;
+        ev.gw = r->mac;
+        this->eventScheduler->send(&ev);
+
+        RouteChangedEvent ev2;
+        ev2.from = dst;
+        ev2.to = src;
+        ev2.gw = r->mac;
+        this->eventScheduler->send(&ev2);
+    }
     r->networks.push_back(n);
 }
 
@@ -250,4 +299,56 @@ Router* Topology::getRouterForNetwork(Network *net)
     }
 
     return 0;
+}
+
+void Topology::sendInitialConfig(OpenFlowSwitch* sw)
+{
+    for (auto& it : this->bridges)
+    {
+        BridgeChangedEvent ev;
+        ev.obj = it.second;
+        ev.sw = sw;
+        this->eventScheduler->send(&ev);
+    }
+
+    for (auto& it : this->networks)
+    {
+        NetworkChangedEvent ev;
+        ev.obj = it.second;
+        ev.sw = sw;
+        this->eventScheduler->send(&ev);
+    }
+
+    for (auto& it : this->routers)
+    {
+        for (auto& it2 : it.second->networks)
+        {
+            Network* src = it2;
+            for (auto& it3 : it.second->networks)
+            {
+                Network* dst = it3;
+                if (dst == src) continue;
+                RouteChangedEvent ev;
+                ev.from = src;
+                ev.to = dst;
+                ev.gw = it.second->mac;
+                ev.sw = sw;
+                this->eventScheduler->send(&ev);
+            }
+        }
+    }
+
+    for (auto& it : this->hosts)
+    {
+        HostChangedEvent ev;
+        ev.obj = it.second;
+        ev.sw = sw;
+        this->eventScheduler->send(&ev);
+    }
+}
+
+void Topology::onNewSwitch(NewSwitchEvent* ev)
+{
+    LOG("New switch found, sending config");
+    this->sendInitialConfig(ev->obj);
 }

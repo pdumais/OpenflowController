@@ -2,7 +2,6 @@
 #include "logger.h"
 #include "string.h"
 
-
 OpenFlowSwitch::OpenFlowSwitch(ResponseHandler* rh): Switch()
 {
     this->responseHandler = rh;
@@ -64,4 +63,20 @@ u32 OpenFlowSwitch::getXid()
 {
     this->currentXid++;
     return this->currentXid;
+}
+
+void OpenFlowSwitch::onRouteChanged(Network* from, Network* to, MacAddress gw, bool added)
+{
+}
+
+void OpenFlowSwitch::onHostChanged(Host* o, bool added)
+{
+}
+
+void OpenFlowSwitch::onNetworkChanged(Network* o, bool added)
+{
+}
+
+void OpenFlowSwitch::onBridgeChanged(Bridge* o, bool added)
+{
 }

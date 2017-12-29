@@ -4,6 +4,7 @@
 #include "ResponseHandler.h"
 #include "OpenFlowHandler.h"
 #include "OpenFlow.h"
+#include "Topology.h"
 
 class OpenFlowSwitch: public Switch, public IOpenFlowSwitch
 {
@@ -27,6 +28,11 @@ public:
     virtual void onPortChanged(OFPort* p, PortChangeOperation op, bool moreToCome) = 0;
     virtual u32 getXid();
     virtual u64 getSwitchId();
+
+    virtual void onRouteChanged(Network* from, Network* to, MacAddress gw, bool added);   
+    virtual void onHostChanged(Host*, bool added);   
+    virtual void onNetworkChanged(Network*, bool added);   
+    virtual void onBridgeChanged(Bridge*, bool added);   
 
     ResponseHandler* getResponseHandler();
     void toJson(Dumais::JSON::JSON& json);    
