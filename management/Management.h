@@ -35,6 +35,7 @@ public:
     void onPostHost(RESTContext* context);
     void onPostNetwork(RESTContext* context);
     void onPostBridge(RESTContext* context);
+    void onPutRouter(RESTContext* context);
     void onDelRouter(RESTContext* context);
     void onDelHost(RESTContext* context);
     void onDelNetwork(RESTContext* context);

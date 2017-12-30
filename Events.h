@@ -13,6 +13,7 @@ struct ManagementHttpEvent: public Event
 {
     std::string url;
     std::string method; 
+    std::string body;
     Dumais::WebServer::HTTPRequestCallBack cb;   
 };
 

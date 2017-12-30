@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <algorithm>
 
 std::string getMacString(MacAddress macAddress)
 {
@@ -16,6 +17,24 @@ std::string getMacString(MacAddress macAddress)
         << std::setfill('0') << std::setw(2) << (int)mac[1] << ":" 
         << std::setfill('0') << std::setw(2) << (int)mac[0];
     return str.str();
+}
+
+MacAddress stringToMac(std::string str)
+{
+    MacAddress ret = 0;
+    const char* buf = str.c_str();
+    u64 m = 48;
+    for (u64 i = 0; i < 17; i++)
+    {
+        if (buf[i] == ':') continue;
+        m -= 4;
+        u64 b = ((u64)buf[i]);
+        if (b>=0x30&&b<=0x39) b-=0x30;
+        if (b>='a'&&b<='f') b = (b-'a')+10;
+        if (b>='A'&&b<='F') b = (b-'A')+10;
+        ret += b << m;
+    }
+    return ret;
 }
 
 MacAddress extractMacAddress(u8* addr)

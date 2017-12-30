@@ -67,6 +67,8 @@ public:
     Network* getNetworkForHost(Host* h);
     Host* findHostByMac(MacAddress mac);
     Router* getRouterForNetwork(Network *net);
+    Router* getRouter(MacAddress mac);
+    Network* getNetwork(u64 id);
     std::vector<Host*> getHostsInNetwork(Network* n);
     std::vector<Host*> getNeighbours(Host* h);
     std::vector<Host*> getHosts();

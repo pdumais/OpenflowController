@@ -47,23 +47,23 @@ void Topology::init(ModuleRepository* repository)
 
     // We will create 1 router to be able to route between network 1 and 3
     // We can route between 1 and 2 because they have the same network address
-    this->addRouter(0x00bbccddee00);
-    this->addNetworkToRouter(this->routers[0x00bbccddee00],this->networks[1]);
-    this->addNetworkToRouter(this->routers[0x00bbccddee00],this->networks[3]);
+//    this->addRouter(0x00bbccddee00);
+//    this->addNetworkToRouter(this->routers[0x00bbccddee00],this->networks[1]);
+//    this->addNetworkToRouter(this->routers[0x00bbccddee00],this->networks[3]);
     
     // Define the hosts: max, network ID, port, IP, hypervisor ID
     this->addHost(extractMacAddress((u8*)mac1),1,1,"10.0.0.1",0x32d1f6ddc94f);
     this->addHost(extractMacAddress((u8*)mac2),1,2,"10.0.0.2",0x32d1f6ddc94f);
     this->addHost(extractMacAddress((u8*)mac3),2,3,"10.0.0.1",0x32d1f6ddc94f);
     this->addHost(extractMacAddress((u8*)mac4),2,4,"10.0.0.2",0x32d1f6ddc94f);
-    this->addHost(extractMacAddress((u8*)mac5),3,5,"192.168.5.1",0x32d1f6ddc94f);
-    this->addHost(extractMacAddress((u8*)mac6),3,6,"192.168.5.2",0x32d1f6ddc94f);
+//    this->addHost(extractMacAddress((u8*)mac5),3,5,"192.168.5.1",0x32d1f6ddc94f);
+//    this->addHost(extractMacAddress((u8*)mac6),3,6,"192.168.5.2",0x32d1f6ddc94f);
     this->addHost(extractMacAddress((u8*)mac7),1,1,"10.0.0.4",0x4e7879903e4c);
     this->addHost(extractMacAddress((u8*)mac8),1,2,"10.0.0.5",0x4e7879903e4c);
     this->addHost(extractMacAddress((u8*)mac9),2,4,"10.0.0.4",0x4e7879903e4c);
     this->addHost(extractMacAddress((u8*)mac10),2,5,"10.0.0.5",0x4e7879903e4c);
-    this->addHost(extractMacAddress((u8*)mac11),3,6,"192.168.5.3",0x4e7879903e4c);
-    this->addHost(extractMacAddress((u8*)mac12),3,7,"192.168.5.4",0x4e7879903e4c);
+//    this->addHost(extractMacAddress((u8*)mac11),3,6,"192.168.5.3",0x4e7879903e4c);
+//    this->addHost(extractMacAddress((u8*)mac12),3,7,"192.168.5.4",0x4e7879903e4c);
 }
 
 void Topology::destroy()
@@ -98,6 +98,7 @@ void Topology::addBridge(u64 id, std::string ip)
     BridgeChangedEvent ev;
     ev.added = true;
     ev.obj = bridge;
+    ev.sw = 0;
     this->eventScheduler->send(&ev);
 }
 
@@ -129,6 +130,7 @@ void Topology::addHost(MacAddress mac,u64 network, u32 port, std::string ip, u64
     HostChangedEvent ev;
     ev.added = true;
     ev.obj = host;
+    ev.sw = 0;
     this->eventScheduler->send(&ev);
 }
 
@@ -156,6 +158,7 @@ void Topology::addNetwork(u64 id,std::string networkAddress, std::string mask, s
     NetworkChangedEvent ev;
     ev.added = true;
     ev.obj = net;
+    ev.sw = 0;
     this->eventScheduler->send(&ev);
 }
 
@@ -228,12 +231,14 @@ void Topology::addNetworkToRouter(Router* r, Network* n)
         ev.from = src;
         ev.to = dst;
         ev.gw = r->mac;
+        ev.sw = 0;
         this->eventScheduler->send(&ev);
 
         RouteChangedEvent ev2;
         ev2.from = dst;
         ev2.to = src;
         ev2.gw = r->mac;
+        ev2.sw = 0;
         this->eventScheduler->send(&ev2);
     }
     r->networks.push_back(n);
@@ -351,4 +356,16 @@ void Topology::onNewSwitch(NewSwitchEvent* ev)
 {
     LOG("New switch found, sending config");
     this->sendInitialConfig(ev->obj);
+}
+
+Router* Topology::getRouter(MacAddress mac)
+{
+    if (!this->routers.count(mac)) return 0;
+    return this->routers[mac];
+}
+
+Network* Topology::getNetwork(u64 id)
+{
+    if (!this->networks.count(id)) return 0;
+    return this->networks[id];
 }
