@@ -10,6 +10,7 @@ More details at http://www.dumais.io/index.php?article=ecb1bf742106e1280f51c6a93
 
 # API:
 ![alt text](https://raw.githubusercontent.com/pdumais/openflowcontroller/master/api.png)
+
 The controller exposes an API to create the overlay networks.
 * POST /router To define a new virtual router
 * PUT /router To add virtual networks to a virtual router so that traffic can be routed between each other.
