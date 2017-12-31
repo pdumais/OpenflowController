@@ -3,16 +3,23 @@ I've implemented this by reading the openflow 1.3 spec and with a lot of help of
 
 The goal was to experiment and uderstand how openflow works. 
 
+# Implementation:
+This controller creates virtual L3 networks that can span over several OVS switches.
+More details at http://www.dumais.io/index.php?article=ecb1bf742106e1280f51c6a937033bdb
 
-Files:
-* OF*: those are the openflow handlers that parses the data received from the switch
-* Server.cpp: The socket server listening for incomming connection
-* Switch.cpp: Class that wraps a L2 switch functionality. Contains no openflow logic. This is used to make forwarding decisions.
-* OpenFlowSwitch.cpp: Base class that does common functionnalities of an openflow controller
-* SimpleLearningSwitch.cpp: This is the actual implementation of a controller application. It is the core class to implement
-                              the behaviour of an L2 switch supporting vlans.
-* testnet.txt: Commands used to create my testing environment
 
+# API:
+![alt text](https://raw.githubusercontent.com/pdumais/openflowcontroller/master/api.png)
+The controller exposes an API to create the overlay networks.
+* POST /router To define a new virtual router
+* PUT /router To add virtual networks to a virtual router so that traffic can be routed between each other.
+* POST /host To define a new virtual machine
+* POST /network To define a new virtual networks
+* POST /bridge  To define a new hypervisor
+* GET /topology To retrieve the virtual topology
+* GET /switch To retrieve information about SDN switches and ports
+
+# Files:
 The folder "dumaislib" is a precompiled binary output of my dumaislib library that
 contains JSON, rest and webserver functionalities. That library can be found in my
 github repos also.
