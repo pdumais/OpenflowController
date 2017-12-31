@@ -9,7 +9,7 @@ More details at http://www.dumais.io/index.php?article=ecb1bf742106e1280f51c6a93
 
 
 # API:
-![alt text](https://raw.githubusercontent.com/pdumais/openflowcontroller/master/api.png)
+![alt text](https://raw.githubusercontent.com/pdumais/openflowcontroller/master/api.png?t=1)
 
 The controller exposes an API to create the overlay networks.
 * POST /router To define a new virtual router
